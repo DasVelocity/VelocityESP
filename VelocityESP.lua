@@ -24,6 +24,7 @@ GlobalConfig.StorageFolder.Parent = Camera
 
 local ESPObjects = {}
 local Connections = {}
+local IsRunning = false
 
 local function GetRoot(part)
     return part:FindFirstAncestorOfClass("Model") and part:FindFirstAncestorOfClass("Model"):FindFirstChild("HumanoidRootPart") or part.PrimaryPart
@@ -47,19 +48,9 @@ local function WorldToScreen(pos)
 end
 
 local function GetBoundingBox(model)
-    local parts = model:GetDescendants()
-    local minVec, maxVec = Vector3.new(math.huge, math.huge, math.huge), Vector3.new(-math.huge, -math.huge, -math.huge)
-    for _, part in ipairs(parts) do
-        if part:IsA("BasePart") then
-            local cf = part.CFrame
-            local size = part.Size / 2
-            for i = 1, 8 do
-                local corner = cf * Vector3.new(size.X * (i%2==0 and 1 or -1), size.Y * (math.floor(i/2)%2==0 and 1 or -1), size.Z * (math.floor(i/4)%2==0 and 1 or -1))
-                minVec = minVec:Min(corner)
-                maxVec = maxVec:Max(corner)
-            end
-        end
-    end
+    local cf, size = model:GetBoundingBox()
+    local minVec = cf.Position - size / 2
+    local maxVec = cf.Position + size / 2
     return minVec, maxVec
 end
 
@@ -67,40 +58,46 @@ function VelocityESP:Add(target, options)
     if not IsValidTarget(target) then return end
     
     options = options or {}
-    local espType = options.Type or "Box"
+    local espTypes = options.Types or {"Box", "Tracer", "Text", "Distance", "Health"}
     local color = options.Color or GlobalConfig.DefaultColor
     local thickness = options.Thickness or GlobalConfig.Thickness
     local transparency = options.Transparency or GlobalConfig.Transparency
     
-    local drawingObj
-    if espType == "Box" then
-        drawingObj = Drawing.new("Quad")
-        drawingObj.Filled = false
-    elseif espType == "Tracer" then
-        drawingObj = Drawing.new("Line")
-    elseif espType == "Text" or espType == "Distance" then
-        drawingObj = Drawing.new("Text")
-        drawingObj.Size = options.Size or 13
-        drawingObj.Center = true
-    elseif espType == "Health" then
-        drawingObj = Drawing.new("Line")
-    else
-        error("Invalid ESPType: " .. espType)
-    end
-    
-    drawingObj.Color = color
-    drawingObj.Thickness = thickness
-    drawingObj.Transparency = transparency
-    drawingObj.Visible = false
-    
     ESPObjects[target] = ESPObjects[target] or {}
-    table.insert(ESPObjects[target], {Obj = drawingObj, Type = espType, Options = options})
+    
+    for _, espType in ipairs(espTypes) do
+        local drawingObj
+        if espType == "Box" then
+            drawingObj = Drawing.new("Quad")
+            drawingObj.Filled = false
+        elseif espType == "Tracer" then
+            drawingObj = Drawing.new("Line")
+        elseif espType == "Text" or espType == "Distance" then
+            drawingObj = Drawing.new("Text")
+            drawingObj.Size = options.Size or 13
+            drawingObj.Center = true
+            drawingObj.Font = 2
+            drawingObj.Outline = true
+        elseif espType == "Health" then
+            drawingObj = Drawing.new("Line")
+            drawingObj.Thickness = 3
+        else
+            continue
+        end
+        
+        drawingObj.Color = color
+        drawingObj.Thickness = thickness
+        drawingObj.Transparency = transparency
+        drawingObj.Visible = false
+        
+        table.insert(ESPObjects[target], {Obj = drawingObj, Type = espType, Options = options})
+    end
 end
 
 function VelocityESP:Remove(target)
     if ESPObjects[target] then
         for _, esp in ipairs(ESPObjects[target]) do
-            esp.Obj:Remove()
+            if esp.Obj then esp.Obj:Remove() end
         end
         ESPObjects[target] = nil
     end
@@ -139,17 +136,17 @@ function VelocityESP:Render()
             obj.Visible = true
             
             if esp.Type == "Box" then
-                local minVec, maxVec = GetBoundingBox(character)
+                local _, maxVec = GetBoundingBox(character)
                 local corners = {
-                    WorldToScreen(minVec),
-                    WorldToScreen(Vector3.new(maxVec.X, minVec.Y, minVec.Z)),
+                    WorldToScreen(character:GetBoundingBox().Position - character:GetBoundingBox().Size / 2),
+                    WorldToScreen(Vector3.new(maxVec.X, minVec.Y, minVec.Z)), -- Simplified; use proper corners if needed
                     WorldToScreen(maxVec),
                     WorldToScreen(Vector3.new(minVec.X, maxVec.Y, minVec.Z))
                 }
-                obj.PointA = corners[1]
-                obj.PointB = corners[2]
-                obj.PointC = corners[3]
-                obj.PointD = corners[4]
+                obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
+                obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
+                obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
+                obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
             elseif esp.Type == "Tracer" then
                 local from
                 if GlobalConfig.TracerFrom == "Bottom" then
@@ -165,59 +162,91 @@ function VelocityESP:Render()
                 obj.To = footScreen
             elseif esp.Type == "Text" then
                 obj.Text = target.Name
-                obj.Position = headScreen + Vector2.new(0, -obj.TextBounds.Y / 2 - 5)
+                obj.Position = headScreen + Vector2.new(0, - (obj.TextBounds and obj.TextBounds.Y or 13) / 2 - 5)
             elseif esp.Type == "Distance" then
                 obj.Text = math.floor(dist) .. " studs"
                 obj.Position = footScreen + Vector2.new(0, 10)
             elseif esp.Type == "Health" then
-                local humanoid = character.Humanoid
-                local healthPercent = humanoid.Health / humanoid.MaxHealth
-                obj.From = footScreen + Vector2.new(-width / 2 - 5, 0)
-                obj.To = obj.From + Vector2.new(0, -height * healthPercent)
-                obj.Color = Color3.fromHSV(healthPercent / 3, 1, 1)
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    local barHeight = height * healthPercent
+                    obj.From = footScreen + Vector2.new(-width - 6, 0)
+                    obj.To = footScreen + Vector2.new(-width - 6, -barHeight)
+                    obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)  -- Red to green
+                end
             end
         end
     end
 end
 
-function VelocityESP:Destroy()
-    for target in pairs(ESPObjects) do
-        self:Remove(target)
+function VelocityESP:UpdateConfig(options)
+    for key, value in pairs(options or {}) do
+        if key == "TeamCheck" then GlobalConfig.TeamCheck = value end
+        if key == "DefaultColor" then GlobalConfig.DefaultColor = value end
+        if key == "Thickness" then GlobalConfig.Thickness = value end
+        if key == "Transparency" then GlobalConfig.Transparency = value end
+        if key == "TracerFrom" then GlobalConfig.TracerFrom = value end
+        if key == "IgnoreCharacter" then GlobalConfig.IgnoreCharacter = value end
     end
-    for _, conn in ipairs(Connections) do
-        conn:Disconnect()
-    end
-    GlobalConfig.StorageFolder:Destroy()
-    Connections = {}
-    ESPObjects = {}
 end
 
-local function SetupAutoESP()
-    local function AddPlayer(player)
-        if player ~= LocalPlayer then
-            VelocityESP:Add(player, {Type = "Box"})
-            VelocityESP:Add(player, {Type = "Tracer"})
-            VelocityESP:Add(player, {Type = "Text"})
-            VelocityESP:Add(player, {Type = "Distance"})
-            VelocityESP:Add(player, {Type = "Health"})
+function VelocityESP:AddPlayerESP(player, options)
+    self:UpdateConfig(options)
+    if player then
+        self:Add(player, options)
+    else
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then
+                self:Add(p, options)
+            end
         end
     end
+end
+
+function VelocityESP:AddAllPlayersESP(options)
+    self:AddPlayerESP(nil, options)
+end
+
+function VelocityESP:Start(options)
+    if IsRunning then return end
+    IsRunning = true
+    self:AddAllPlayersESP(options or {})
     
-    for _, player in ipairs(Players:GetPlayers()) do
-        AddPlayer(player)
-    end
+    table.insert(Connections, Players.PlayerAdded:Connect(function(player)
+        if options and options.AutoAddNew then
+            self:Add(player, options)
+        end
+    end))
     
-    table.insert(Connections, Players.PlayerAdded:Connect(AddPlayer))
     table.insert(Connections, Players.PlayerRemoving:Connect(function(player)
-        VelocityESP:Remove(player)
+        self:Remove(player)
     end))
     
     table.insert(Connections, RunService.RenderStepped:Connect(function()
-        pcall(VelocityESP.Render, VelocityESP)
+        pcall(self.Render, self)
     end))
 end
 
-SetupAutoESP()
+function VelocityESP:Stop()
+    if not IsRunning then return end
+    IsRunning = false
+    for _, conn in ipairs(Connections) do
+        conn:Disconnect()
+    end
+    Connections = {}
+    for target in pairs(ESPObjects) do
+        self:Remove(target)
+    end
+end
+
+function VelocityESP:Destroy()
+    self:Stop()
+    if GlobalConfig.StorageFolder then
+        GlobalConfig.StorageFolder:Destroy()
+    end
+    ESPObjects = {}
+end
 
 getgenv().Velocity_ESP = VelocityESP
 return VelocityESP
