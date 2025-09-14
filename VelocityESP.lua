@@ -1,4 +1,9 @@
--- VelocityESP (updated: Remove nil => remove all players, RemoveObjectsByName, label fixes)
+-- Combined full script: VelocityESP library (with improved Drawing detection) + UI/caller code
+-- Paste this whole file into your executor.
+
+---------------------------
+-- VelocityESP Library
+---------------------------
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
@@ -28,7 +33,22 @@ local ObjectAddConnection
 local Connections = {}
 local IsRunning = false
 
-local DrawingAvailable = (type(Drawing) == "table")
+-- improved Drawing detection (works if Drawing is table/userdata or available with Drawing.new)
+local DrawingAvailable = false
+do
+    local ok = pcall(function() return Drawing end)
+    if ok and Drawing and type(Drawing.new) == "function" then
+        DrawingAvailable = true
+    else
+        -- final attempt: if specific exploit exposes Drawing differently, try creating one safely
+        local ok2, _ = pcall(function() return Drawing.new("Text") end)
+        if ok2 then
+            DrawingAvailable = true
+        else
+            DrawingAvailable = false
+        end
+    end
+end
 
 local function safeNewDrawing(typeName)
     if not DrawingAvailable then return nil end
@@ -144,6 +164,11 @@ local function CreateESPObjectsForPlayer(playerOrObject, options)
     local transparency = options.Transparency or GlobalConfig.Transparency
 
     local drawList = {}
+    -- if Drawing isn't available, return empty drawList (so highlights/billboards still work)
+    if not DrawingAvailable then
+        return drawList
+    end
+
     for _, typ in ipairs(types) do
         local obj
         if typ == "Box" then
@@ -164,10 +189,13 @@ local function CreateESPObjectsForPlayer(playerOrObject, options)
             if obj then obj.Thickness = 3 end
         end
         if obj then
-            obj.Color = color
-            obj.Thickness = thickness
-            obj.Transparency = transparency
-            obj.Visible = false
+            -- drawing properties (some drawing types may not support every property; pcall to be safe)
+            pcall(function()
+                obj.Color = color
+                obj.Thickness = thickness or obj.Thickness
+                obj.Transparency = transparency or obj.Transparency
+                obj.Visible = false
+            end)
             table.insert(drawList, {Obj = obj, Type = typ})
         end
     end
@@ -378,7 +406,7 @@ function VelocityESP:Remove(player)
         -- remove all player ESP entries
         for p, _ in pairs(ESPObjects) do
             -- safe pcall for each to avoid errors during iteration
-            pcall(function() 
+            pcall(function()
                 for _, esp in ipairs(ESPObjects[p].DrawObjects or {}) do
                     if esp.Obj and esp.Obj.Remove then
                         pcall(function() esp.Obj:Remove() end)
@@ -648,10 +676,12 @@ function VelocityESP:Render()
                 if not obj then continue end
                 obj.Visible = true
                 if d.Type == "Box" then
-                    obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
-                    obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
-                    obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
-                    obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
+                    pcall(function()
+                        obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
+                        obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
+                        obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
+                        obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
+                    end)
                 elseif d.Type == "Tracer" then
                     local from
                     if GlobalConfig.TracerFrom == "Bottom" then
@@ -665,22 +695,28 @@ function VelocityESP:Render()
                     else
                         from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                     end
-                    obj.From = from
-                    obj.To = footScreen
+                    pcall(function()
+                        obj.From = from
+                        obj.To = footScreen
+                    end)
                 elseif d.Type == "Text" then
-                    obj.Text = ""
-                    obj.Position = headScreen + Vector2.new(0, -18)
+                    pcall(function()
+                        obj.Text = ""
+                        obj.Position = headScreen + Vector2.new(0, -18)
+                    end)
                 elseif d.Type == "Health" then
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    if humanoid then
-                        local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
-                        local barHeight = height * healthPercent
-                        obj.From = footScreen + Vector2.new(-width - 8, 0)
-                        obj.To = footScreen + Vector2.new(-width - 8, -barHeight)
-                        obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)
-                    else
-                        obj.Visible = false
-                    end
+                    pcall(function()
+                        local humanoid = character:FindFirstChildOfClass("Humanoid")
+                        if humanoid then
+                            local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
+                            local barHeight = height * healthPercent
+                            obj.From = footScreen + Vector2.new(-width - 8, 0)
+                            obj.To = footScreen + Vector2.new(-width - 8, -barHeight)
+                            obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)
+                        else
+                            obj.Visible = false
+                        end
+                    end)
                 end
             end
             if entry.Billboard and entry.Billboard.Parent then
@@ -879,5 +915,3 @@ VelocityESP.AddObjectESP = VelocityESP.AddObjectESP
 VelocityESP.RemoveObjectESP = VelocityESP.RemoveObjectESP
 VelocityESP.AddObjectsByName = VelocityESP.AddObjectsByName
 VelocityESP.RemoveObjectsByName = VelocityESP.RemoveObjectsByName
-
-return VelocityESP
