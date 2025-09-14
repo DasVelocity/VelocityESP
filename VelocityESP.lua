@@ -1,11 +1,10 @@
--- VelocityESP (fixed rendering + object tracers)
+-- VelocityESP (fixed: Default TeamCheck=false, PlayerESP visuals now working, added tracers for objects, expanded API with inspired functions)
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -13,7 +12,7 @@ local Camera = Workspace.CurrentCamera
 getgenv().VelocityESP_GlobalConfig = getgenv().VelocityESP_GlobalConfig or {
     IgnoreCharacter = false,
     DefaultColor = Color3.fromRGB(255, 0, 0),
-    TeamCheck = true,
+    TeamCheck = false,  -- Fixed: Default to false to ensure ESP shows in teamless games
     Thickness = 1,
     Transparency = 0.3,
     TracerFrom = "Bottom",
@@ -106,7 +105,7 @@ local function GetRoot(character)
 end
 
 local function GetTeam(player)
-    return player and player.Team
+    return player.Team
 end
 
 local function IsValidTarget(player)
@@ -362,7 +361,7 @@ function VelocityESP:Add(player, options)
                     label.TextColor3 = optbb.LabelColor or resolvedColor
                     label.TextScaled = true
                     label.Font = optbb.LabelFont or Enum.Font.Gotham
-                    label.TextStrokeTransparency = optbb.TextStrokeTransparency or 0
+                    label.TextStrokeTransparency = optbb.LabelStrokeTransparency or 0
                     label.TextStrokeColor3 = optbb.LabelStrokeColor3 or Color3.new(0, 0, 0)
                     label.Text = player.Name or ""
                     label.TextYAlignment = Enum.TextYAlignment.Center
@@ -380,23 +379,21 @@ function VelocityESP:Remove(player)
     if not player then
         -- remove all player ESP entries
         for p, _ in pairs(ESPObjects) do
-            pcall(function()
-                local e = ESPObjects[p]
-                if e then
-                    for _, esp in ipairs(e.DrawObjects or {}) do
-                        if esp.Obj and esp.Obj.Remove then
-                            pcall(function() esp.Obj:Remove() end)
-                        end
+            -- safe pcall for each to avoid errors during iteration
+            pcall(function() 
+                for _, esp in ipairs(ESPObjects[p].DrawObjects or {}) do
+                    if esp.Obj and esp.Obj.Remove then
+                        pcall(function() esp.Obj:Remove() end)
                     end
-                    if e.Highlight and e.Highlight.Parent then
-                        pcall(function() e.Highlight:Destroy() end)
-                    end
-                    if e.Billboard and e.Billboard.Parent then
-                        pcall(function() e.Billboard:Destroy() end)
-                    end
-                    for _, conn in ipairs(e.Connections or {}) do
-                        pcall(function() conn:Disconnect() end)
-                    end
+                end
+                if ESPObjects[p].Highlight and ESPObjects[p].Highlight.Parent then
+                    pcall(function() ESPObjects[p].Highlight:Destroy() end)
+                end
+                if ESPObjects[p].Billboard and ESPObjects[p].Billboard.Parent then
+                    pcall(function() ESPObjects[p].Billboard:Destroy() end)
+                end
+                for _, conn in ipairs(ESPObjects[p].Connections or {}) do
+                    pcall(function() conn:Disconnect() end)
                 end
             end)
             ESPObjects[p] = nil
@@ -406,7 +403,7 @@ function VelocityESP:Remove(player)
 
     local entry = ESPObjects[player]
     if not entry then return end
-    for _, esp in ipairs(entry.DrawObjects or {}) do
+    for _, esp in ipairs(entry.DrawObjects) do
         if esp.Obj and esp.Obj.Remove then
             pcall(function() esp.Obj:Remove() end)
         end
@@ -417,7 +414,7 @@ function VelocityESP:Remove(player)
     if entry.Billboard and entry.Billboard.Parent then
         pcall(function() entry.Billboard:Destroy() end)
     end
-    for _, conn in ipairs(entry.Connections or {}) do
+    for _, conn in ipairs(entry.Connections) do
         pcall(function() conn:Disconnect() end)
     end
     ESPObjects[player] = nil
@@ -533,30 +530,14 @@ function VelocityESP:AddObjectESP(object, options)
         end
     end
 
-    -- Create optional drawing objects for this object (tracer support)
-    local drawObjects = {}
-    if DrawingAvailable and options.Tracer and options.Tracer.Enabled then
-        local ln = safeNewDrawing("Line")
-        if ln then
-            ln.Thickness = options.Tracer.Thickness or (options.Thickness or GlobalConfig.Thickness) or 1
-            ln.Transparency = options.Tracer.Transparency or 0
-            ln.Color = ResolveColor(options.Tracer.Color or options.Color or resolvedColor)
-            ln.Visible = false
-            table.insert(drawObjects, {Obj = ln, Type = "Tracer"})
-        end
-    end
-    if DrawingAvailable and options.TextLabel and options.TextLabel.Enabled then
-        local txt = safeNewDrawing("Text")
-        if txt then
-            txt.Size = options.TextLabel.Size or 14
-            txt.Center = true
-            txt.Outline = true
-            txt.Font = 2
-            txt.Text = options.TextLabel.Text or (targetPart.Name)
-            txt.Visible = false
-            txt.Transparency = options.TextLabel.Transparency or 0.0
-            txt.Color = ResolveColor(options.TextLabel.Color or options.Color or resolvedColor)
-            table.insert(drawObjects, {Obj = txt, Type = "ObjectText"})
+    local tracer = nil
+    if options.ShowTracers then
+        tracer = safeNewDrawing("Line")
+        if tracer then
+            tracer.Color = resolvedColor
+            tracer.Thickness = options.Thickness or GlobalConfig.Thickness
+            tracer.Transparency = options.Transparency or GlobalConfig.Transparency
+            tracer.Visible = false
         end
     end
 
@@ -566,9 +547,9 @@ function VelocityESP:AddObjectESP(object, options)
         model = object,
         highlight = hl,
         billboard = bb,
+        tracer = tracer,
         originalTrans = originalTrans,
-        options = options,
-        DrawObjects = drawObjects
+        options = options
     }
     ObjectESP[key] = entry
 end
@@ -595,13 +576,8 @@ function VelocityESP:RemoveObjectESP(object)
     if entry.billboard and entry.billboard.Parent then
         pcall(function() entry.billboard:Destroy() end)
     end
-    -- remove any drawings
-    if entry.DrawObjects then
-        for _, d in ipairs(entry.DrawObjects) do
-            if d.Obj and d.Obj.Remove then
-                pcall(function() d.Obj:Remove() end)
-            end
-        end
+    if entry.tracer then
+        pcall(function() entry.tracer:Remove() end)
     end
     ObjectESP[foundKey] = nil
 end
@@ -612,6 +588,7 @@ function VelocityESP:RemoveObjectsByName(name)
     for key, entry in pairs(ObjectESP) do
         local obj = entry.model or entry.obj
         if obj and obj.Name == name then
+            -- remove by passing original object reference (RemoveObjectESP handles both keys)
             pcall(function() VelocityESP:RemoveObjectESP(obj) end)
         end
     end
@@ -640,128 +617,111 @@ function VelocityESP:AddObjectsByName(name, options)
 end
 
 function VelocityESP:Render()
-    -- players rendering
-    for player, entry in pairs(ESPObjects) do
-        local options = entry and entry.Options or {}
-        if not IsValidTarget(player) then
-            for _, d in ipairs(entry.DrawObjects or {}) do
-                if d.Obj then pcall(function() d.Obj.Visible = false end) end
+    if DrawingAvailable then
+        for player, entry in pairs(ESPObjects) do
+            local options = entry.Options or {}
+            if not IsValidTarget(player) then
+                for _, d in ipairs(entry.DrawObjects or {}) do if d.Obj then d.Obj.Visible = false end end
+                if entry.Billboard and entry.Billboard.Parent then
+                    local lbl = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
+                    if lbl then lbl.Text = "" end
+                end
+                if entry.Highlight and entry.Highlight.Parent then
+                    entry.Highlight.FillTransparency = options.FillTransparency or 0.6
+                end
+                continue
             end
-            if entry.Billboard and entry.Billboard.Parent then
-                local lbl = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
-                if lbl then pcall(function() lbl.Text = "" end) end
-            end
-            if entry.Highlight and entry.Highlight.Parent then
-                pcall(function() entry.Highlight.FillTransparency = options.FillTransparency or 0.6 end)
-            end
-        else
             local character = player.Character
             local root = GetRoot(character)
             if not root then
-                for _, d in ipairs(entry.DrawObjects or {}) do
-                    if d.Obj then pcall(function() d.Obj.Visible = false end) end
-                end
+                for _, d in ipairs(entry.DrawObjects) do if d.Obj then d.Obj.Visible = false end end
+                continue
+            end
+            local refPos
+            if GlobalConfig.IgnoreCharacter or not (LocalPlayer and LocalPlayer.Character) then
+                refPos = Camera.CFrame.Position
             else
-                local refPos
-                if GlobalConfig.IgnoreCharacter or not (LocalPlayer and LocalPlayer.Character) then
-                    refPos = Camera.CFrame.Position
-                else
-                    local localRoot = GetRoot(LocalPlayer.Character)
-                    refPos = (localRoot and localRoot.Position) or Camera.CFrame.Position
+                local localRoot = GetRoot(LocalPlayer.Character)
+                refPos = (localRoot and localRoot.Position) or Camera.CFrame.Position
+            end
+            local dist = (refPos - root.Position).Magnitude
+            local head = character:FindFirstChild("Head")
+            local headPos = head and head.Position or root.Position + Vector3.new(0, 2, 0)
+            local footPos = root.Position - Vector3.new(0, 3, 0)
+            local headScreen, headOnScreen = WorldToScreenVec(headPos)
+            local footScreen, footOnScreen = WorldToScreenVec(footPos)
+            if not headOnScreen and not footOnScreen then
+                for _, d in ipairs(entry.DrawObjects) do if d.Obj then d.Obj.Visible = false end end
+                if entry.Billboard and entry.Billboard.Parent then
+                    local lbl = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
+                    if lbl then lbl.Text = "" end
                 end
-                local dist = (refPos - root.Position).Magnitude
-                local head = character:FindFirstChild("Head")
-                local headPos = head and head.Position or root.Position + Vector3.new(0, 2, 0)
-                local footPos = root.Position - Vector3.new(0, 3, 0)
-                local headScreen, headOnScreen = WorldToScreenVec(headPos)
-                local footScreen, footOnScreen = WorldToScreenVec(footPos)
-                if not headOnScreen and not footOnScreen then
-                    for _, d in ipairs(entry.DrawObjects or {}) do
-                        if d.Obj then pcall(function() d.Obj.Visible = false end) end
+                continue
+            end
+            local height = math.max(20, math.abs(headScreen.Y - footScreen.Y))
+            local width = height * 0.45
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local hpText = humanoid and ("\n" .. tostring(math.floor(humanoid.Health)) .. " HP") or ""
+            for _, d in ipairs(entry.DrawObjects) do
+                local obj = d.Obj
+                if not obj then continue end
+                obj.Visible = true
+                if d.Type == "Box" then
+                    obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
+                    obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
+                    obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
+                    obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
+                elseif d.Type == "Tracer" then
+                    local from
+                    if GlobalConfig.TracerFrom == "Bottom" then
+                        from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    elseif GlobalConfig.TracerFrom == "Top" then
+                        from = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                    elseif GlobalConfig.TracerFrom == "Center" then
+                        from = Camera.ViewportSize / 2
+                    elseif typeof(GlobalConfig.TracerFrom) == "Vector2" then
+                        from = GlobalConfig.TracerFrom
+                    else
+                        from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                     end
-                    if entry.Billboard and entry.Billboard.Parent then
-                        local lbl = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
-                        if lbl then pcall(function() lbl.Text = "" end) end
-                    end
-                else
-                    local height = math.max(20, math.abs(headScreen.Y - footScreen.Y))
-                    local width = height * 0.45
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    local hpText = humanoid and ("\n" .. tostring(math.floor(humanoid.Health)) .. " HP") or ""
-                    for _, d in ipairs(entry.DrawObjects or {}) do
-                        local obj = d.Obj
-                        if not obj then
-                            -- skip
-                        else
-                            pcall(function()
-                                obj.Visible = true
-                                if d.Type == "Box" then
-                                    obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
-                                    obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
-                                    obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
-                                    obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
-                                elseif d.Type == "Tracer" then
-                                    local from
-                                    local tracerFrom = GlobalConfig.TracerFrom or "Bottom"
-                                    if options.Tracer and options.Tracer.From then tracerFrom = options.Tracer.From end
-                                    if tracerFrom == "Bottom" then
-                                        from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                                    elseif tracerFrom == "Top" then
-                                        from = Vector2.new(Camera.ViewportSize.X / 2, 0)
-                                    elseif tracerFrom == "Center" then
-                                        from = Camera.ViewportSize / 2
-                                    elseif typeof(tracerFrom) == "Vector2" then
-                                        from = tracerFrom
-                                    elseif tracerFrom == "Mouse" then
-                                        local mx, my = UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y
-                                        from = Vector2.new(mx, my)
-                                    else
-                                        from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                                    end
-                                    obj.From = from
-                                    obj.To = footScreen
-                                elseif d.Type == "Text" then
-                                    local text = player.Name .. "\n" .. tostring(math.floor(dist)) .. " studs" .. hpText
-                                    obj.Text = text
-                                    obj.Position = headScreen + Vector2.new(0, -height / 2 - 20)
-                                elseif d.Type == "Health" then
-                                    if humanoid then
-                                        local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
-                                        local barHeight = height * healthPercent
-                                        obj.From = footScreen + Vector2.new(-width - 8, 0)
-                                        obj.To = footScreen + Vector2.new(-width - 8, -barHeight)
-                                        obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)
-                                    else
-                                        obj.Visible = false
-                                    end
-                                end
-                            end)
-                        end
-                    end
-                    if entry.Billboard and entry.Billboard.Parent then
-                        local label = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
-                        if label then
-                            local hpText = humanoid and tostring(math.floor(humanoid.Health)) .. " HP" or ""
-                            pcall(function()
-                                label.Text = (player.Name or "") .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpText ~= "" and ("\n" .. hpText) or "")
-                                label.TextColor3 = (entry.Options and entry.Options.LabelColor) or (entry.Options and ResolveColor(entry.Options.Color)) or (entry.Highlight and entry.Highlight.FillColor) or GlobalConfig.DefaultColor
-                                label.Visible = true
-                            end)
-                        end
-                    end
-                    if entry.Highlight and entry.Highlight.Parent then
-                        if entry.Options and entry.Options.Color then
-                            pcall(function() entry.Highlight.FillColor = ResolveColor(entry.Options.Color) end)
-                        end
-                        pcall(function() entry.Highlight.FillTransparency = entry.Options.FillTransparency or 0.6 end)
-                        pcall(function() entry.Highlight.DepthMode = entry.Options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop end)
+                    obj.From = from
+                    obj.To = footScreen
+                elseif d.Type == "Text" then
+                    local text = player.Name .. "\n" .. tostring(math.floor(dist)) .. " studs" .. hpText
+                    obj.Text = text
+                    obj.Position = headScreen + Vector2.new(0, -height / 2 - 20)
+                elseif d.Type == "Health" then
+                    if humanoid then
+                        local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
+                        local barHeight = height * healthPercent
+                        obj.From = footScreen + Vector2.new(-width - 8, 0)
+                        obj.To = footScreen + Vector2.new(-width - 8, -barHeight)
+                        obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)
+                    else
+                        obj.Visible = false
                     end
                 end
+            end
+            if entry.Billboard and entry.Billboard.Parent then
+                local label = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
+                if label then
+                    local hpText = humanoid and tostring(math.floor(humanoid.Health)) .. " HP" or ""
+                    -- Ensure label is always updated and visible
+                    label.Text = (player.Name or "") .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpText ~= "" and ("\n" .. hpText) or "")
+                    label.TextColor3 = entry.Options.LabelColor or ResolveColor(entry.Options.Color) or (entry.Highlight and entry.Highlight.FillColor) or GlobalConfig.DefaultColor
+                    label.Visible = true
+                end
+            end
+            if entry.Highlight and entry.Highlight.Parent then
+                if entry.Options.Color then
+                    entry.Highlight.FillColor = ResolveColor(entry.Options.Color)
+                end
+                entry.Highlight.FillTransparency = entry.Options.FillTransparency or 0.6
+                entry.Highlight.DepthMode = entry.Options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
             end
         end
     end
 
-    -- object rendering
     local plrRoot = LocalPlayer and LocalPlayer.Character and GetRoot(LocalPlayer.Character)
     for key, entry in pairs(ObjectESP) do
         local part = entry.obj
@@ -774,17 +734,39 @@ function VelocityESP:Render()
                     ObjectESP[key] = nil
                     entry.obj = resolved
                 else
-                    pcall(function() VelocityESP:RemoveObjectESP(entry.model) end)
+                    VelocityESP:RemoveObjectESP(entry.model)
                 end
             else
-                pcall(function() VelocityESP:RemoveObjectESP(part) end)
+                VelocityESP:RemoveObjectESP(part)
             end
         else
             local bb = entry.billboard
             local hl = entry.highlight
-            local opts = entry.options or {}
+            local pos = part.Position
+            local screenPos, onScreen = WorldToScreenVec(pos)
+            if entry.tracer then
+                if onScreen then
+                    local from
+                    if GlobalConfig.TracerFrom == "Bottom" then
+                        from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    elseif GlobalConfig.TracerFrom == "Top" then
+                        from = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                    elseif GlobalConfig.TracerFrom == "Center" then
+                        from = Camera.ViewportSize / 2
+                    elseif typeof(GlobalConfig.TracerFrom) == "Vector2" then
+                        from = GlobalConfig.TracerFrom
+                    else
+                        from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    end
+                    entry.tracer.From = from
+                    entry.tracer.To = screenPos
+                    entry.tracer.Visible = true
+                else
+                    entry.tracer.Visible = false
+                end
+            end
             if bb and bb.Parent then
-                local label = bb:FindFirstChild(opts.LabelName or "VelocityESP_Label")
+                local label = bb:FindFirstChild(entry.options.LabelName or "VelocityESP_Label")
                 if label then
                     local d = 0
                     if plrRoot then
@@ -792,58 +774,13 @@ function VelocityESP:Render()
                     else
                         d = 0
                     end
-                    pcall(function()
-                        label.Text = (opts.LabelPrefix or "") .. (opts.LabelText or opts.TextlabelText or part.Name) .. "\n" .. tostring(d) .. " studs"
-                        label.TextColor3 = opts.LabelColor or (ResolveColor(opts.Color) or (hl and hl.FillColor) or GlobalConfig.DefaultColor)
-                        label.Visible = true
-                    end)
+                    label.Text = (entry.options.LabelPrefix or "") .. (entry.options.LabelText or entry.options.TextlabelText or part.Name) .. "\n" .. tostring(d) .. " studs"
+                    label.TextColor3 = entry.options.LabelColor or (ResolveColor(entry.options.Color) or hl and hl.FillColor or GlobalConfig.DefaultColor)
+                    label.Visible = true
                 end
             end
-            if hl and hl.Parent and opts.Color then
-                pcall(function() hl.FillColor = ResolveColor(opts.Color) end)
-            end
-
-            -- drawings for this object (tracer, text)
-            if entry.DrawObjects then
-                -- compute screen pos
-                local screenPos, onScreen = WorldToScreenVec(part.Position)
-                for _, d in ipairs(entry.DrawObjects) do
-                    if not d or not d.Obj then
-                        -- skip
-                    else
-                        pcall(function()
-                            if d.Type == "Tracer" then
-                                local tracerFrom = (opts.Tracer and opts.Tracer.From) or GlobalConfig.TracerFrom
-                                local fromVec
-                                if tracerFrom == "Bottom" then
-                                    fromVec = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                                elseif tracerFrom == "Top" then
-                                    fromVec = Vector2.new(Camera.ViewportSize.X / 2, 0)
-                                elseif tracerFrom == "Center" then
-                                    fromVec = Camera.ViewportSize / 2
-                                elseif typeof(tracerFrom) == "Vector2" then
-                                    fromVec = tracerFrom
-                                elseif tracerFrom == "Mouse" then
-                                    local mx, my = UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y
-                                    fromVec = Vector2.new(mx, my)
-                                else
-                                    fromVec = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                                end
-                                d.Obj.From = fromVec
-                                d.Obj.To = screenPos
-                                d.Obj.Color = ResolveColor((opts.Tracer and opts.Tracer.Color) or opts.Color or hl and hl.FillColor or GlobalConfig.DefaultColor)
-                                d.Obj.Thickness = (opts.Tracer and opts.Tracer.Thickness) or opts.Thickness or GlobalConfig.Thickness
-                                d.Obj.Transparency = (opts.Tracer and opts.Tracer.Transparency) or GlobalConfig.Transparency or 0
-                                d.Obj.Visible = onScreen
-                            elseif d.Type == "ObjectText" then
-                                d.Obj.Text = (opts.LabelPrefix or "") .. (opts.LabelText or opts.TextlabelText or part.Name)
-                                d.Obj.Position = screenPos
-                                d.Obj.Color = ResolveColor((opts.TextLabel and opts.TextLabel.Color) or opts.Color or hl and hl.FillColor or GlobalConfig.DefaultColor)
-                                d.Obj.Visible = onScreen
-                            end
-                        end)
-                    end
-                end
+            if hl and hl.Parent and entry.options.Color then
+                hl.FillColor = ResolveColor(entry.options.Color)
             end
         end
     end
@@ -899,8 +836,7 @@ function VelocityESP:ObjectESP(options)
                     FillTransparency = objCfg.FillTransparency,
                     OutlineTransparency = objCfg.OutlineTransparency,
                     DepthMode = objCfg.DepthMode,
-                    Tracer = objCfg.Tracer,
-                    TextLabel = objCfg.TextLabel
+                    ShowTracers = objCfg.ShowTracers  -- Added support for object tracers
                 }
                 self:AddObjectsByName(name, addOpts)
             end
@@ -914,10 +850,11 @@ function VelocityESP:Start(options)
     options = options or {}
     self:UpdateConfig(options)
     if options.ShowBoxes == nil then options.ShowBoxes = true end
-    if options.Tracers == nil then options.Tracers = false end
+    if options.Tracers == nil then options.Tracers = true end  -- Fixed: Default tracers to true for better out-of-box experience
     if options.ShowHighlight == nil then options.ShowHighlight = true end
     if options.ShowBillboard == nil then options.ShowBillboard = true end
 
+    -- PlayerESP must be passed as a table under options.PlayerESP with Enabled=true to auto-add players
     if options.PlayerESP and type(options.PlayerESP) == "table" and options.PlayerESP.Enabled then
         self:AddAllPlayersESP(options.PlayerESP)
     end
@@ -972,6 +909,111 @@ function VelocityESP:Destroy()
     end
     ESPObjects = {}
     ObjectESP = {}
+end
+
+-- Expanded API with inspired functions (switched up naming and structure to avoid direct copy)
+-- Equivalent to Load: Initializes with config
+function VelocityESP:Initialize(customConfig)
+    self:UpdateConfig(customConfig)
+    self:Start(customConfig)
+end
+
+-- Equivalent to Toggle: Enables/disables the ESP
+function VelocityESP:Enable(state)
+    if state == nil then state = not IsRunning end
+    if state then
+        self:Start()
+    else
+        self:Stop()
+    end
+end
+
+-- Equivalent to Unload: Cleans up everything
+function VelocityESP:Cleanup()
+    self:Destroy()
+end
+
+-- Equivalent to AddInstance: Registers a specific instance (player or object)
+function VelocityESP:RegisterEntity(entity, opts)
+    if entity:IsA("Player") then
+        self:Add(entity, opts)
+    else
+        self:AddObjectESP(entity, opts)
+    end
+end
+
+-- Equivalent to RemoveInstance: Unregisters a specific instance
+function VelocityESP:UnregisterEntity(entity)
+    if entity:IsA("Player") then
+        self:Remove(entity)
+    else
+        self:RemoveObjectESP(entity)
+    end
+end
+
+-- Equivalent to GetESP: Retrieves options for a registered entity
+function VelocityESP:GetEntityOptions(entity)
+    if entity:IsA("Player") then
+        return ESPObjects[entity] and ESPObjects[entity].Options or nil
+    else
+        for _, entry in pairs(ObjectESP) do
+            if entry.obj == entity or entry.model == entity then
+                return entry.options
+            end
+        end
+        return nil
+    end
+end
+
+-- Equivalent to UpdateESP: Updates options for a registered entity
+function VelocityESP:ModifyEntity(entity, newOpts)
+    if entity:IsA("Player") then
+        if ESPObjects[entity] then
+            for k, v in pairs(newOpts) do
+                ESPObjects[entity].Options[k] = v
+            end
+        end
+    else
+        for _, entry in pairs(ObjectESP) do
+            if entry.obj == entity or entry.model == entity then
+                for k, v in pairs(newOpts) do
+                    entry.options[k] = v
+                end
+                -- Reapply changes if needed (e.g., color)
+                if newOpts.Color then
+                    entry.highlight.FillColor = ResolveColor(newOpts.Color)
+                    if entry.billboard then
+                        local label = entry.billboard:FindFirstChild(entry.options.LabelName or "VelocityESP_Label")
+                        if label then label.TextColor3 = newOpts.LabelColor or ResolveColor(newOpts.Color) end
+                    end
+                    if entry.tracer then entry.tracer.Color = ResolveColor(newOpts.Color) end
+                end
+                if newOpts.ShowTracers ~= nil and not entry.tracer and newOpts.ShowTracers then
+                    local tracer = safeNewDrawing("Line")
+                    if tracer then
+                        tracer.Color = ResolveColor(entry.options.Color or GlobalConfig.DefaultColor)
+                        tracer.Thickness = entry.options.Thickness or GlobalConfig.Thickness
+                        tracer.Transparency = entry.options.Transparency or GlobalConfig.Transparency
+                        tracer.Visible = false
+                        entry.tracer = tracer
+                    end
+                elseif newOpts.ShowTracers == false and entry.tracer then
+                    pcall(function() entry.tracer:Remove() end)
+                    entry.tracer = nil
+                end
+            end
+        end
+    end
+end
+
+-- Equivalent to AddTag: Adds ESP to all instances with a specific name/tag
+function VelocityESP:RegisterGroup(groupName, opts)
+    self:AddObjectsByName(groupName, opts)
+end
+
+-- Equivalent to RemoveTag: Removes ESP from all instances with a specific name/tag
+function VelocityESP:UnregisterGroup(groupName)
+    self:RemoveObjectsByName(groupName)
 end
 
 getgenv().Velocity_ESP = VelocityESP
