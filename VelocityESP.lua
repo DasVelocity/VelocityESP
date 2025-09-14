@@ -1,9 +1,4 @@
--- Combined full script: VelocityESP library (with improved Drawing detection) + UI/caller code
--- Paste this whole file into your executor.
-
----------------------------
--- VelocityESP Library
----------------------------
+-- VelocityESP (updated: Remove nil => remove all players, RemoveObjectsByName, label fixes)
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
@@ -19,7 +14,7 @@ getgenv().VelocityESP_GlobalConfig = getgenv().VelocityESP_GlobalConfig or {
     DefaultColor = Color3.fromRGB(255, 0, 0),
     TeamCheck = true,
     Thickness = 1,
-    Transparency = 1,
+    Transparency = 0.3,
     TracerFrom = "Bottom",
     StorageFolder = Instance.new("Folder")
 }
@@ -33,22 +28,7 @@ local ObjectAddConnection
 local Connections = {}
 local IsRunning = false
 
--- improved Drawing detection (works if Drawing is table/userdata or available with Drawing.new)
-local DrawingAvailable = false
-do
-    local ok = pcall(function() return Drawing end)
-    if ok and Drawing and type(Drawing.new) == "function" then
-        DrawingAvailable = true
-    else
-        -- final attempt: if specific exploit exposes Drawing differently, try creating one safely
-        local ok2, _ = pcall(function() return Drawing.new("Text") end)
-        if ok2 then
-            DrawingAvailable = true
-        else
-            DrawingAvailable = false
-        end
-    end
-end
+local DrawingAvailable = (type(Drawing) == "table")
 
 local function safeNewDrawing(typeName)
     if not DrawingAvailable then return nil end
@@ -152,9 +132,11 @@ local function CreateESPObjectsForPlayer(playerOrObject, options)
         local t = {}
         if options.ShowBoxes == nil then options.ShowBoxes = true end
         if options.ShowBoxes then table.insert(t, "Box") end
-        if options.Tracers == nil then options.Tracers = false end
+        if options.Tracers == nil then options.Tracers = true end
         if options.Tracers then table.insert(t, "Tracer") end
+        if options.ShowTexts == nil then options.ShowTexts = true end
         if options.ShowTexts then table.insert(t, "Text") end
+        if options.ShowHealth == nil then options.ShowHealth = true end
         if options.ShowHealth then table.insert(t, "Health") end
         types = t
     end
@@ -164,11 +146,6 @@ local function CreateESPObjectsForPlayer(playerOrObject, options)
     local transparency = options.Transparency or GlobalConfig.Transparency
 
     local drawList = {}
-    -- if Drawing isn't available, return empty drawList (so highlights/billboards still work)
-    if not DrawingAvailable then
-        return drawList
-    end
-
     for _, typ in ipairs(types) do
         local obj
         if typ == "Box" then
@@ -189,13 +166,10 @@ local function CreateESPObjectsForPlayer(playerOrObject, options)
             if obj then obj.Thickness = 3 end
         end
         if obj then
-            -- drawing properties (some drawing types may not support every property; pcall to be safe)
-            pcall(function()
-                obj.Color = color
-                obj.Thickness = thickness or obj.Thickness
-                obj.Transparency = transparency or obj.Transparency
-                obj.Visible = false
-            end)
+            obj.Color = color
+            obj.Thickness = thickness
+            obj.Transparency = transparency
+            obj.Visible = false
             table.insert(drawList, {Obj = obj, Type = typ})
         end
     end
@@ -406,7 +380,7 @@ function VelocityESP:Remove(player)
         -- remove all player ESP entries
         for p, _ in pairs(ESPObjects) do
             -- safe pcall for each to avoid errors during iteration
-            pcall(function()
+            pcall(function() 
                 for _, esp in ipairs(ESPObjects[p].DrawObjects or {}) do
                     if esp.Obj and esp.Obj.Remove then
                         pcall(function() esp.Obj:Remove() end)
@@ -671,17 +645,17 @@ function VelocityESP:Render()
             end
             local height = math.max(20, math.abs(headScreen.Y - footScreen.Y))
             local width = height * 0.45
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local hpText = humanoid and ("\n" .. tostring(math.floor(humanoid.Health)) .. " HP") or ""
             for _, d in ipairs(entry.DrawObjects) do
                 local obj = d.Obj
                 if not obj then continue end
                 obj.Visible = true
                 if d.Type == "Box" then
-                    pcall(function()
-                        obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
-                        obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
-                        obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
-                        obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
-                    end)
+                    obj.PointA = Vector2.new(headScreen.X - width, headScreen.Y)
+                    obj.PointB = Vector2.new(headScreen.X + width, headScreen.Y)
+                    obj.PointC = Vector2.new(footScreen.X + width, footScreen.Y)
+                    obj.PointD = Vector2.new(footScreen.X - width, footScreen.Y)
                 elseif d.Type == "Tracer" then
                     local from
                     if GlobalConfig.TracerFrom == "Bottom" then
@@ -695,38 +669,28 @@ function VelocityESP:Render()
                     else
                         from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                     end
-                    pcall(function()
-                        obj.From = from
-                        obj.To = footScreen
-                    end)
+                    obj.From = from
+                    obj.To = footScreen
                 elseif d.Type == "Text" then
-                    pcall(function()
-                        obj.Text = ""
-                        obj.Position = headScreen + Vector2.new(0, -18)
-                    end)
+                    local text = player.Name .. "\n" .. tostring(math.floor(dist)) .. " studs" .. hpText
+                    obj.Text = text
+                    obj.Position = headScreen + Vector2.new(0, -height / 2 - 20)
                 elseif d.Type == "Health" then
-                    pcall(function()
-                        local humanoid = character:FindFirstChildOfClass("Humanoid")
-                        if humanoid then
-                            local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
-                            local barHeight = height * healthPercent
-                            obj.From = footScreen + Vector2.new(-width - 8, 0)
-                            obj.To = footScreen + Vector2.new(-width - 8, -barHeight)
-                            obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)
-                        else
-                            obj.Visible = false
-                        end
-                    end)
+                    if humanoid then
+                        local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
+                        local barHeight = height * healthPercent
+                        obj.From = footScreen + Vector2.new(-width - 8, 0)
+                        obj.To = footScreen + Vector2.new(-width - 8, -barHeight)
+                        obj.Color = Color3.fromHSV((1 - healthPercent) / 3, 1, 1)
+                    else
+                        obj.Visible = false
+                    end
                 end
             end
             if entry.Billboard and entry.Billboard.Parent then
                 local label = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
                 if label then
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    local hpText = ""
-                    if humanoid then
-                        hpText = tostring(math.floor(humanoid.Health)) .. " HP"
-                    end
+                    local hpText = humanoid and tostring(math.floor(humanoid.Health)) .. " HP" or ""
                     -- Ensure label is always updated and visible
                     label.Text = (player.Name or "") .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpText ~= "" and ("\n" .. hpText) or "")
                     label.TextColor3 = entry.Options.LabelColor or ResolveColor(entry.Options.Color) or (entry.Highlight and entry.Highlight.FillColor) or GlobalConfig.DefaultColor
@@ -915,3 +879,5 @@ VelocityESP.AddObjectESP = VelocityESP.AddObjectESP
 VelocityESP.RemoveObjectESP = VelocityESP.RemoveObjectESP
 VelocityESP.AddObjectsByName = VelocityESP.AddObjectsByName
 VelocityESP.RemoveObjectsByName = VelocityESP.RemoveObjectsByName
+
+return VelocityESP
