@@ -1,4 +1,4 @@
--- VelocityESP (fixed)
+-- VelocityESP (updated: Remove nil => remove all players, RemoveObjectsByName, label fixes)
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
@@ -20,7 +20,6 @@ getgenv().VelocityESP_GlobalConfig = getgenv().VelocityESP_GlobalConfig or {
 }
 local GlobalConfig = getgenv().VelocityESP_GlobalConfig
 GlobalConfig.StorageFolder.Name = "VelocityESP_Storage"
--- Parent the storage folder to Workspace to make decorations reliable across different games/camera contexts
 GlobalConfig.StorageFolder.Parent = Workspace
 
 local ESPObjects = {}
@@ -265,7 +264,9 @@ function VelocityESP:Add(player, options)
                     label.Font = opt.LabelFont or Enum.Font.Gotham
                     label.TextStrokeTransparency = opt.LabelStrokeTransparency or 0
                     label.TextStrokeColor3 = opt.LabelStrokeColor3 or Color3.new(0, 0, 0)
-                    label.Text = ""
+                    label.Text = player.Name or ""
+                    label.TextScaled = true
+                    label.Visible = true
                 end
                 ESPObjects[player].Billboard = bb
             else
@@ -285,9 +286,10 @@ function VelocityESP:Add(player, options)
                 label.Font = opt.LabelFont or Enum.Font.Gotham
                 label.TextStrokeTransparency = opt.LabelStrokeTransparency or 0
                 label.TextStrokeColor3 = opt.LabelStrokeColor3 or Color3.new(0, 0, 0)
-                label.Text = ""
+                label.Text = player.Name or ""
                 label.TextYAlignment = Enum.TextYAlignment.Center
                 label.TextXAlignment = Enum.TextXAlignment.Center
+                label.Visible = true
                 label.Parent = bb
                 ESPObjects[player].Billboard = bb
             end
@@ -338,7 +340,8 @@ function VelocityESP:Add(player, options)
                         label.Font = optbb.LabelFont or Enum.Font.Gotham
                         label.TextStrokeTransparency = optbb.LabelStrokeTransparency or 0
                         label.TextStrokeColor3 = optbb.LabelStrokeColor3 or Color3.new(0, 0, 0)
-                        label.Text = ""
+                        label.Text = player.Name or ""
+                        label.Visible = true
                     end
                     entry.Billboard = bb
                 else
@@ -358,7 +361,7 @@ function VelocityESP:Add(player, options)
                     label.Font = optbb.LabelFont or Enum.Font.Gotham
                     label.TextStrokeTransparency = optbb.LabelStrokeTransparency or 0
                     label.TextStrokeColor3 = optbb.LabelStrokeColor3 or Color3.new(0, 0, 0)
-                    label.Text = ""
+                    label.Text = player.Name or ""
                     label.TextYAlignment = Enum.TextYAlignment.Center
                     label.TextXAlignment = Enum.TextXAlignment.Center
                     label.Parent = bb
@@ -369,7 +372,33 @@ function VelocityESP:Add(player, options)
     end
 end
 
+-- Remove player ESP; if no argument provided, remove all players
 function VelocityESP:Remove(player)
+    if not player then
+        -- remove all player ESP entries
+        for p, _ in pairs(ESPObjects) do
+            -- safe pcall for each to avoid errors during iteration
+            pcall(function() 
+                for _, esp in ipairs(ESPObjects[p].DrawObjects or {}) do
+                    if esp.Obj and esp.Obj.Remove then
+                        pcall(function() esp.Obj:Remove() end)
+                    end
+                end
+                if ESPObjects[p].Highlight and ESPObjects[p].Highlight.Parent then
+                    pcall(function() ESPObjects[p].Highlight:Destroy() end)
+                end
+                if ESPObjects[p].Billboard and ESPObjects[p].Billboard.Parent then
+                    pcall(function() ESPObjects[p].Billboard:Destroy() end)
+                end
+                for _, conn in ipairs(ESPObjects[p].Connections or {}) do
+                    pcall(function() conn:Disconnect() end)
+                end
+            end)
+            ESPObjects[p] = nil
+        end
+        return
+    end
+
     local entry = ESPObjects[player]
     if not entry then return end
     for _, esp in ipairs(entry.DrawObjects) do
@@ -424,11 +453,11 @@ function VelocityESP:AddObjectESP(object, options)
             pcall(function() targetPart.Transparency = 0 end)
         end
     end
-    -- determine adornee for highlight and billboard
+
     local billboardAdornee = targetPart
     local hlAdornee = (options.ShowWholeModel and object:IsA("Model")) and object or targetPart
 
-    -- create highlight; parent it into the dedicated storage folder for reliability
+    -- create highlight and parent to storage folder (reliable)
     local hl = nil
     do
         local existing = nil
@@ -441,7 +470,6 @@ function VelocityESP:AddObjectESP(object, options)
         if existing and existing:IsA("Highlight") then
             hl = existing
             hl.Adornee = hlAdornee
-            -- parent highlight to storage folder to avoid visibility issues
             hl.Parent = GlobalConfig.StorageFolder
         else
             hl = Instance.new("Highlight")
@@ -456,7 +484,7 @@ function VelocityESP:AddObjectESP(object, options)
     hl.OutlineTransparency = options.OutlineTransparency or 0
     hl.DepthMode = options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
 
-    -- create billboard (still parent the billboard to its adornee part, as Billboards should be children of parts)
+    -- create billboard (parent to adornee part)
     local bb = nil
     if billboardAdornee then
         local existingbb = billboardAdornee:FindFirstChild(options.BillboardName or "VelocityESP_Billboard")
@@ -472,6 +500,8 @@ function VelocityESP:AddObjectESP(object, options)
                 label.TextColor3 = options.LabelColor or resolvedColor
                 label.Font = options.LabelFont or Enum.Font.Gotham
                 label.Text = options.LabelText or options.TextlabelText or (targetPart.Name)
+                label.TextScaled = true
+                label.Visible = true
             end
         else
             bb = Instance.new("BillboardGui")
@@ -493,6 +523,7 @@ function VelocityESP:AddObjectESP(object, options)
             label.TextStrokeColor3 = options.LabelStrokeColor3 or Color3.new(0, 0, 0)
             label.TextXAlignment = Enum.TextXAlignment.Center
             label.TextYAlignment = Enum.TextYAlignment.Center
+            label.Visible = true
             label.Parent = bb
         end
     end
@@ -532,6 +563,18 @@ function VelocityESP:RemoveObjectESP(object)
         pcall(function() entry.billboard:Destroy() end)
     end
     ObjectESP[foundKey] = nil
+end
+
+-- New: remove all objects with the provided name (works for both Models and Parts)
+function VelocityESP:RemoveObjectsByName(name)
+    if not name or type(name) ~= "string" then return end
+    for key, entry in pairs(ObjectESP) do
+        local obj = entry.model or entry.obj
+        if obj and obj.Name == name then
+            -- remove by passing original object reference (RemoveObjectESP handles both keys)
+            pcall(function() VelocityESP:RemoveObjectESP(obj) end)
+        end
+    end
 end
 
 function VelocityESP:AddObjectsByName(name, options)
@@ -648,8 +691,10 @@ function VelocityESP:Render()
                     if humanoid then
                         hpText = tostring(math.floor(humanoid.Health)) .. " HP"
                     end
-                    label.Text = player.Name .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpText ~= "" and ("\n" .. hpText) or "")
+                    -- Ensure label is always updated and visible
+                    label.Text = (player.Name or "") .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpText ~= "" and ("\n" .. hpText) or "")
                     label.TextColor3 = entry.Options.LabelColor or ResolveColor(entry.Options.Color) or (entry.Highlight and entry.Highlight.FillColor) or GlobalConfig.DefaultColor
+                    label.Visible = true
                 end
             end
             if entry.Highlight and entry.Highlight.Parent then
@@ -693,6 +738,7 @@ function VelocityESP:Render()
                     end
                     label.Text = (entry.options.LabelPrefix or "") .. (entry.options.LabelText or entry.options.TextlabelText or part.Name) .. "\n" .. tostring(d) .. " studs"
                     label.TextColor3 = entry.options.LabelColor or (ResolveColor(entry.options.Color) or hl and hl.FillColor or GlobalConfig.DefaultColor)
+                    label.Visible = true
                 end
             end
             if hl and hl.Parent and entry.options.Color then
@@ -769,7 +815,7 @@ function VelocityESP:Start(options)
     if options.ShowHighlight == nil then options.ShowHighlight = true end
     if options.ShowBillboard == nil then options.ShowBillboard = true end
 
-    -- Only enable player ESP when explicitly requested by passing PlayerESP = { Enabled = true, ... } into Start()
+    -- PlayerESP must be passed as a table under options.PlayerESP with Enabled=true to auto-add players
     if options.PlayerESP and type(options.PlayerESP) == "table" and options.PlayerESP.Enabled then
         self:AddAllPlayersESP(options.PlayerESP)
     end
@@ -778,7 +824,6 @@ function VelocityESP:Start(options)
         self:ObjectESP(options.ObjectESP)
     end
     table.insert(Connections, Players.PlayerAdded:Connect(function(player)
-        -- only auto-add newly joined players if PlayerESP is enabled
         if options.PlayerESP and type(options.PlayerESP) == "table" and options.PlayerESP.Enabled then
             self:Add(player, options.PlayerESP)
         end
@@ -803,9 +848,9 @@ function VelocityESP:Stop()
         pcall(function() conn:Disconnect() end)
     end
     Connections = {}
-    for player, _ in pairs(ESPObjects) do
-        self:Remove(player)
-    end
+    -- remove all player ESP
+    self:Remove()
+    -- remove all object ESP
     for key, entry in pairs(ObjectESP) do
         if entry and entry.obj then
             self:RemoveObjectESP(entry.obj)
@@ -833,5 +878,6 @@ VelocityESP.ResolveColor = ResolveColor
 VelocityESP.AddObjectESP = VelocityESP.AddObjectESP
 VelocityESP.RemoveObjectESP = VelocityESP.RemoveObjectESP
 VelocityESP.AddObjectsByName = VelocityESP.AddObjectsByName
+VelocityESP.RemoveObjectsByName = VelocityESP.RemoveObjectsByName
 
 return VelocityESP
