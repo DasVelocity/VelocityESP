@@ -1,10 +1,3 @@
--- Velocity ESP Library v1.0
--- Inspired by various Roblox ESP implementations
--- Features: Box, Tracer, Name (Text), Health, Distance
--- GlobalConfig: IgnoreCharacter (uses Camera for positioning)
--- Usage: VelocityESP:Add(playerInstance, {Type = "Box", Color = Color3.new(1,0,0), ...})
--- Call VelocityESP:Render() in a loop or RenderStepped
-
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
@@ -15,26 +8,23 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Global configuration
 getgenv().VelocityESP_GlobalConfig = getgenv().VelocityESP_GlobalConfig or {
-    IgnoreCharacter = false,  -- If true, uses Camera instead of Character RootPart for relative positioning
+    IgnoreCharacter = false,
     DefaultColor = Color3.fromRGB(255, 255, 255),
-    TeamCheck = true,         -- Don't ESP teammates
+    TeamCheck = true,
     Thickness = 1,
     Transparency = 1,
-    TracerFrom = "Bottom",    -- "Bottom", "Top", "Center", or Vector2 screen point
-    StorageFolder = Instance.new("Folder")  -- To parent invisible elements and avoid render limits
+    TracerFrom = "Bottom",
+    StorageFolder = Instance.new("Folder")
 }
 local GlobalConfig = getgenv().VelocityESP_GlobalConfig
 
 GlobalConfig.StorageFolder.Name = "VelocityESP_Storage"
-GlobalConfig.StorageFolder.Parent = Camera  -- Parent to Camera to persist
+GlobalConfig.StorageFolder.Parent = Camera
 
--- Internal storage
 local ESPObjects = {}
 local Connections = {}
 
--- Helper functions
 local function GetRoot(part)
     return part:FindFirstAncestorOfClass("Model") and part:FindFirstAncestorOfClass("Model"):FindFirstChild("HumanoidRootPart") or part.PrimaryPart
 end
@@ -73,12 +63,11 @@ local function GetBoundingBox(model)
     return minVec, maxVec
 end
 
--- Create new ESP for a target
 function VelocityESP:Add(target, options)
     if not IsValidTarget(target) then return end
     
     options = options or {}
-    local espType = options.Type or "Box"  -- "Box", "Tracer", "Text", "Health", "Distance"
+    local espType = options.Type or "Box"
     local color = options.Color or GlobalConfig.DefaultColor
     local thickness = options.Thickness or GlobalConfig.Thickness
     local transparency = options.Transparency or GlobalConfig.Transparency
@@ -94,7 +83,7 @@ function VelocityESP:Add(target, options)
         drawingObj.Size = options.Size or 13
         drawingObj.Center = true
     elseif espType == "Health" then
-        drawingObj = Drawing.new("Line")  -- For health bar
+        drawingObj = Drawing.new("Line")
     else
         error("Invalid ESPType: " .. espType)
     end
@@ -104,12 +93,10 @@ function VelocityESP:Add(target, options)
     drawingObj.Transparency = transparency
     drawingObj.Visible = false
     
-    -- Store per target
     ESPObjects[target] = ESPObjects[target] or {}
     table.insert(ESPObjects[target], {Obj = drawingObj, Type = espType, Options = options})
 end
 
--- Remove ESP for a target
 function VelocityESP:Remove(target)
     if ESPObjects[target] then
         for _, esp in ipairs(ESPObjects[target]) do
@@ -119,7 +106,6 @@ function VelocityESP:Remove(target)
     end
 end
 
--- Render/update all ESP
 function VelocityESP:Render()
     for target, esps in pairs(ESPObjects) do
         if not IsValidTarget(target) then
@@ -188,13 +174,12 @@ function VelocityESP:Render()
                 local healthPercent = humanoid.Health / humanoid.MaxHealth
                 obj.From = footScreen + Vector2.new(-width / 2 - 5, 0)
                 obj.To = obj.From + Vector2.new(0, -height * healthPercent)
-                obj.Color = Color3.fromHSV(healthPercent / 3, 1, 1)  -- Green to red
+                obj.Color = Color3.fromHSV(healthPercent / 3, 1, 1)
             end
         end
     end
 end
 
--- Destroy the library
 function VelocityESP:Destroy()
     for target in pairs(ESPObjects) do
         self:Remove(target)
@@ -207,11 +192,9 @@ function VelocityESP:Destroy()
     ESPObjects = {}
 end
 
--- Auto-add all players and handle joins/leaves
 local function SetupAutoESP()
     local function AddPlayer(player)
         if player ~= LocalPlayer then
-            -- Example: Add default ESP types
             VelocityESP:Add(player, {Type = "Box"})
             VelocityESP:Add(player, {Type = "Tracer"})
             VelocityESP:Add(player, {Type = "Text"})
@@ -229,14 +212,12 @@ local function SetupAutoESP()
         VelocityESP:Remove(player)
     end))
     
-    -- Render loop
     table.insert(Connections, RunService.RenderStepped:Connect(function()
-        pcall(VelocityESP.Render, VelocityESP)  -- Error handling
+        pcall(VelocityESP.Render, VelocityESP)
     end))
 end
 
--- Initialize if desired (call manually if needed)
--- SetupAutoESP()
+SetupAutoESP()
 
 getgenv().Velocity_ESP = VelocityESP
 return VelocityESP
