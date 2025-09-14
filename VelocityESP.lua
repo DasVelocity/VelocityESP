@@ -1,4 +1,4 @@
--- VelocityESP (fixed rendering + object tracers)
+-- VelocityESP (fixed rendering + object tracers + enhanced features)
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
@@ -29,10 +29,11 @@ local ObjectAddConnection
 local Connections = {}
 local IsRunning = false
 
+local DrawingAvailable = (type(Drawing) == "table")
+
 local function safeNewDrawing(typeName)
-    local ok, obj = pcall(function()
-        return (Drawing and Drawing.new) and Drawing.new(typeName) or nil
-    end)
+    if not DrawingAvailable then return nil end
+    local ok, obj = pcall(function() return Drawing.new(typeName) end)
     if not ok then return nil end
     return obj
 end
@@ -125,39 +126,21 @@ local function WorldToScreenVec(vector3)
     return Vector2.new(screenPos.X, screenPos.Y), onScreen, screenPos.Z
 end
 
-local function MergePlayerDefaults(options)
+local function CreateESPObjectsForPlayer(playerOrObject, options)
     options = options or {}
-    local out = {}
-    out.ShowBoxes = (options.ShowBoxes ~= nil) and options.ShowBoxes or true
-    out.Tracers = (options.Tracers ~= nil) and options.Tracers or ((options.Tracer ~= nil) and true or true)
-    out.Tracer = options.Tracer or (options.Tracers and {}) or nil
-    out.ShowTexts = (options.ShowTexts ~= nil) and options.ShowTexts or true
-    out.ShowHealth = (options.ShowHealth ~= nil) and options.ShowHealth or false
-    out.Size = options.Size or 14
-    out.LabelColor = options.LabelColor or options.Color or GlobalConfig.DefaultColor
-    out.LabelFont = options.LabelFont or Enum.Font.Gotham
-    out.LabelStrokeTransparency = options.LabelStrokeTransparency or 0
-    out.LabelStrokeColor3 = options.LabelStrokeColor3 or Color3.new(0,0,0)
-    out.Color = options.Color or GlobalConfig.DefaultColor
-    out.StudsOffset = options.StudsOffset or Vector3.new(0,3,0)
-    out.Thickness = options.Thickness or GlobalConfig.Thickness
-    out.Transparency = (options.Transparency ~= nil) and options.Transparency or GlobalConfig.Transparency
-    out.ShowHighlight = (options.ShowHighlight ~= nil) and options.ShowHighlight or true
-    out.FillTransparency = options.FillTransparency or 0.6
-    out.OutlineTransparency = options.OutlineTransparency or 0
-    out.ShowBillboard = (options.ShowBillboard ~= nil) and options.ShowBillboard or true
-    out.DepthMode = options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
-    out = setmetatable(out, {__index = options})
-    return out
-end
-
-local function CreateESPObjectsForPlayer(playerOrObject, optionsRaw)
-    local options = MergePlayerDefaults(optionsRaw)
-    local types = {}
-    if options.ShowBoxes then table.insert(types, "Box") end
-    if options.Tracers then table.insert(types, "Tracer") end
-    if options.ShowTexts then table.insert(types, "Text") end
-    if options.ShowHealth then table.insert(types, "Health") end
+    local types = options.Types or nil
+    if not types then
+        local t = {}
+        if options.ShowBoxes == nil then options.ShowBoxes = true end
+        if options.ShowBoxes then table.insert(t, "Box") end
+        if options.Tracers == nil then options.Tracers = true end
+        if options.Tracers then table.insert(t, "Tracer") end
+        if options.ShowTexts == nil then options.ShowTexts = true end
+        if options.ShowTexts then table.insert(t, "Text") end
+        if options.ShowHealth == nil then options.ShowHealth = false end -- Default to false now
+        if options.ShowHealth then table.insert(t, "Health") end
+        types = t
+    end
 
     local color = ResolveColor(options.Color or options.DefaultColor or GlobalConfig.DefaultColor)
     local thickness = options.Thickness or GlobalConfig.Thickness
@@ -181,7 +164,7 @@ local function CreateESPObjectsForPlayer(playerOrObject, optionsRaw)
             end
         elseif typ == "Health" then
             obj = safeNewDrawing("Line")
-            if obj then obj.Thickness = math.max(2, (options.Thickness or GlobalConfig.Thickness)) end
+            if obj then obj.Thickness = 3 end
         end
         if obj then
             obj.Color = color
@@ -191,7 +174,7 @@ local function CreateESPObjectsForPlayer(playerOrObject, optionsRaw)
             table.insert(drawList, {Obj = obj, Type = typ})
         end
     end
-    return drawList, options
+    return drawList
 end
 
 function VelocityESP:CreateCharacterHighlightAndBillboard(player, options)
@@ -216,19 +199,18 @@ function VelocityESP:CreateCharacterHighlightAndBillboard(player, options)
     end
 end
 
-function VelocityESP:Add(player, optionsRaw)
+function VelocityESP:Add(player, options)
     if not player or not player:IsA("Player") then return end
-    optionsRaw = optionsRaw or {}
+    options = options or {}
     if ESPObjects[player] then
-        ESPObjects[player].Options = MergePlayerDefaults(optionsRaw)
+        ESPObjects[player].Options = options
         return
     end
 
-    local drawList, merged = CreateESPObjectsForPlayer(player, optionsRaw)
     local entry = {
-        DrawObjects = drawList,
+        DrawObjects = CreateESPObjectsForPlayer(player, options),
         Connections = {},
-        Options = merged,
+        Options = options,
         Highlight = nil,
         Billboard = nil
     }
@@ -242,44 +224,46 @@ function VelocityESP:Add(player, optionsRaw)
 
     table.insert(entry.Connections, player.CharacterAdded:Connect(function(char)
         task.wait(0.05)
-        local opt = ESPObjects[player] and ESPObjects[player].Options or merged
+        local opt = ESPObjects[player] and ESPObjects[player].Options or options
         local resolvedColor = ResolveColor(opt.Color or GlobalConfig.DefaultColor)
         local character = char
         if not character then return end
         local root = GetRoot(character)
         if not root then return end
+        if opt.ShowHighlight == nil then opt.ShowHighlight = true end
         if opt.ShowHighlight then
             local existing = character:FindFirstChild("VelocityESP_PlayerHighlight")
             if existing and existing:IsA("Highlight") then
                 existing.Adornee = character
-                existing.Parent = GlobalConfig.StorageFolder
+                existing.Parent = GlobalConfig.StorageFolder -- Changed to storage for consistency
                 existing.FillColor = resolvedColor
                 existing.FillTransparency = opt.FillTransparency or 0.6
                 existing.OutlineTransparency = opt.OutlineTransparency or 0
-                existing.DepthMode = opt.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
+                existing.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                 ESPObjects[player].Highlight = existing
             else
                 local hl = Instance.new("Highlight")
                 hl.Name = "VelocityESP_PlayerHighlight"
                 hl.Adornee = character
-                hl.Parent = GlobalConfig.StorageFolder
+                hl.Parent = GlobalConfig.StorageFolder -- Changed to storage
                 hl.FillColor = resolvedColor
                 hl.FillTransparency = opt.FillTransparency or 0.6
                 hl.OutlineTransparency = opt.OutlineTransparency or 0
-                hl.DepthMode = opt.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
+                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                 ESPObjects[player].Highlight = hl
             end
         end
-        if opt.ShowBillboard and root then
+        if opt.ShowBillboard == nil then opt.ShowBillboard = true end
+        if opt.ShowBillboard then
             local bb = root:FindFirstChild("VelocityESP_PlayerBillboard")
             if bb and bb:IsA("BillboardGui") then
                 bb.Adornee = root
-                bb.Parent = root
+                bb.Parent = GlobalConfig.StorageFolder -- Changed to storage
                 bb.AlwaysOnTop = true
                 bb.StudsOffset = opt.StudsOffset or Vector3.new(0, 3, 0)
                 local label = bb:FindFirstChildWhichIsA("TextLabel")
                 if label then
-                    label.TextColor3 = ResolveColor(opt.LabelColor or opt.Color or resolvedColor)
+                    label.TextColor3 = opt.LabelColor or resolvedColor
                     label.Font = opt.LabelFont or Enum.Font.Gotham
                     label.TextStrokeTransparency = opt.LabelStrokeTransparency or 0
                     label.TextStrokeColor3 = opt.LabelStrokeColor3 or Color3.new(0, 0, 0)
@@ -295,12 +279,12 @@ function VelocityESP:Add(player, optionsRaw)
                 bb.AlwaysOnTop = true
                 bb.Size = UDim2.new(0, 160, 0, 48)
                 bb.StudsOffset = opt.StudsOffset or Vector3.new(0, 3, 0)
-                bb.Parent = root
+                bb.Parent = GlobalConfig.StorageFolder -- Changed to storage
                 local label = Instance.new("TextLabel")
                 label.Name = "VelocityESP_PlayerLabel"
                 label.Size = UDim2.new(1, 0, 1, 0)
                 label.BackgroundTransparency = 1
-                label.TextColor3 = ResolveColor(opt.LabelColor or opt.Color or resolvedColor)
+                label.TextColor3 = opt.LabelColor or resolvedColor
                 label.TextScaled = true
                 label.Font = opt.LabelFont or Enum.Font.Gotham
                 label.TextStrokeTransparency = opt.LabelStrokeTransparency or 0
@@ -308,6 +292,7 @@ function VelocityESP:Add(player, optionsRaw)
                 label.Text = player.Name or ""
                 label.TextYAlignment = Enum.TextYAlignment.Center
                 label.TextXAlignment = Enum.TextXAlignment.Center
+                label.Visible = true
                 label.Parent = bb
                 ESPObjects[player].Billboard = bb
             end
@@ -321,41 +306,43 @@ function VelocityESP:Add(player, optionsRaw)
             local opt = entry.Options
             local resolvedColor = ResolveColor(opt.Color or GlobalConfig.DefaultColor)
             local root = GetRoot(char)
+            if opt.ShowHighlight == nil then opt.ShowHighlight = true end
             if opt.ShowHighlight then
                 local existing = char:FindFirstChild("VelocityESP_PlayerHighlight")
                 if existing and existing:IsA("Highlight") then
                     existing.Adornee = char
-                    existing.Parent = GlobalConfig.StorageFolder
+                    existing.Parent = GlobalConfig.StorageFolder -- Changed
                     existing.FillColor = resolvedColor
                     existing.FillTransparency = opt.FillTransparency or 0.6
                     existing.OutlineTransparency = opt.OutlineTransparency or 0
-                    existing.DepthMode = opt.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
+                    existing.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                     entry.Highlight = existing
                 else
                     local hl = Instance.new("Highlight")
                     hl.Name = "VelocityESP_PlayerHighlight"
                     hl.Adornee = char
-                    hl.Parent = GlobalConfig.StorageFolder
+                    hl.Parent = GlobalConfig.StorageFolder -- Changed
                     hl.FillColor = resolvedColor
                     hl.FillTransparency = opt.FillTransparency or 0.6
                     hl.OutlineTransparency = opt.OutlineTransparency or 0
-                    hl.DepthMode = opt.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
+                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
                     entry.Highlight = hl
                 end
             end
-            if root and opt.ShowBillboard then
+            if root and (entry.Options.ShowBillboard == nil or entry.Options.ShowBillboard) then
+                local optbb = entry.Options
                 local bb = root:FindFirstChild("VelocityESP_PlayerBillboard")
                 if bb and bb:IsA("BillboardGui") then
                     bb.Adornee = root
-                    bb.Parent = root
+                    bb.Parent = GlobalConfig.StorageFolder -- Changed
                     bb.AlwaysOnTop = true
-                    bb.StudsOffset = opt.StudsOffset or Vector3.new(0, 3, 0)
+                    bb.StudsOffset = optbb.StudsOffset or Vector3.new(0, 3, 0)
                     local label = bb:FindFirstChildWhichIsA("TextLabel")
                     if label then
-                        label.TextColor3 = ResolveColor(opt.LabelColor or opt.Color or resolvedColor)
-                        label.Font = opt.LabelFont or Enum.Font.Gotham
-                        label.TextStrokeTransparency = opt.LabelStrokeTransparency or 0
-                        label.TextStrokeColor3 = opt.LabelStrokeColor3 or Color3.new(0, 0, 0)
+                        label.TextColor3 = optbb.LabelColor or resolvedColor
+                        label.Font = optbb.LabelFont or Enum.Font.Gotham
+                        label.TextStrokeTransparency = optbb.LabelStrokeTransparency or 0
+                        label.TextStrokeColor3 = optbb.LabelStrokeColor3 or Color3.new(0, 0, 0)
                         label.Text = player.Name or ""
                         label.Visible = true
                     end
@@ -366,17 +353,17 @@ function VelocityESP:Add(player, optionsRaw)
                     bb.Adornee = root
                     bb.AlwaysOnTop = true
                     bb.Size = UDim2.new(0, 160, 0, 48)
-                    bb.StudsOffset = opt.StudsOffset or Vector3.new(0, 3, 0)
-                    bb.Parent = root
+                    bb.StudsOffset = optbb.StudsOffset or Vector3.new(0, 3, 0)
+                    bb.Parent = GlobalConfig.StorageFolder -- Changed
                     local label = Instance.new("TextLabel")
                     label.Name = "VelocityESP_PlayerLabel"
                     label.Size = UDim2.new(1, 0, 1, 0)
                     label.BackgroundTransparency = 1
-                    label.TextColor3 = ResolveColor(opt.LabelColor or opt.Color or resolvedColor)
+                    label.TextColor3 = optbb.LabelColor or resolvedColor
                     label.TextScaled = true
-                    label.Font = opt.LabelFont or Enum.Font.Gotham
-                    label.TextStrokeTransparency = opt.LabelStrokeTransparency or 0
-                    label.TextStrokeColor3 = opt.LabelStrokeColor3 or Color3.new(0, 0, 0)
+                    label.Font = optbb.LabelFont or Enum.Font.Gotham
+                    label.TextStrokeTransparency = optbb.TextStrokeTransparency or 0
+                    label.TextStrokeColor3 = optbb.LabelStrokeColor3 or Color3.new(0, 0, 0)
                     label.Text = player.Name or ""
                     label.TextYAlignment = Enum.TextYAlignment.Center
                     label.TextXAlignment = Enum.TextXAlignment.Center
@@ -388,8 +375,10 @@ function VelocityESP:Add(player, optionsRaw)
     end
 end
 
+-- Remove player ESP; if no argument provided, remove all players
 function VelocityESP:Remove(player)
     if not player then
+        -- remove all player ESP entries
         for p, _ in pairs(ESPObjects) do
             pcall(function()
                 local e = ESPObjects[p]
@@ -473,6 +462,7 @@ function VelocityESP:AddObjectESP(object, options)
     local billboardAdornee = targetPart
     local hlAdornee = (options.ShowWholeModel and object:IsA("Model")) and object or targetPart
 
+    -- create highlight and parent to storage folder (reliable)
     local hl = nil
     do
         local existing = nil
@@ -499,19 +489,20 @@ function VelocityESP:AddObjectESP(object, options)
     hl.OutlineTransparency = options.OutlineTransparency or 0
     hl.DepthMode = options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
 
+    -- create billboard (parent to storage folder now)
     local bb = nil
     if billboardAdornee then
         local existingbb = billboardAdornee:FindFirstChild(options.BillboardName or "VelocityESP_Billboard")
         if existingbb and existingbb:IsA("BillboardGui") then
             bb = existingbb
             bb.Adornee = billboardAdornee
-            bb.Parent = billboardAdornee
+            bb.Parent = GlobalConfig.StorageFolder -- Changed to storage
             bb.AlwaysOnTop = true
             bb.Size = options.BillboardSize or UDim2.new(0, 120, 0, 36)
             bb.StudsOffset = options.StudsOffset or Vector3.new(0, 3, 0)
             local label = bb:FindFirstChild(options.LabelName or "VelocityESP_Label")
             if label and label:IsA("TextLabel") then
-                label.TextColor3 = ResolveColor(options.LabelColor or resolvedColor)
+                label.TextColor3 = options.LabelColor or resolvedColor
                 label.Font = options.LabelFont or Enum.Font.Gotham
                 label.Text = options.LabelText or options.TextlabelText or (targetPart.Name)
                 label.TextScaled = true
@@ -524,12 +515,12 @@ function VelocityESP:AddObjectESP(object, options)
             bb.AlwaysOnTop = true
             bb.Size = options.BillboardSize or UDim2.new(0, 120, 0, 36)
             bb.StudsOffset = options.StudsOffset or Vector3.new(0, 3, 0)
-            bb.Parent = billboardAdornee
+            bb.Parent = GlobalConfig.StorageFolder -- Changed to storage
             local label = Instance.new("TextLabel")
             label.Name = options.LabelName or "VelocityESP_Label"
             label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
-            label.TextColor3 = ResolveColor(options.LabelColor or resolvedColor)
+            label.TextColor3 = options.LabelColor or resolvedColor
             label.TextScaled = true
             label.Font = options.LabelFont or Enum.Font.Gotham
             label.Text = options.LabelText or options.TextlabelText or (targetPart.Name)
@@ -542,8 +533,9 @@ function VelocityESP:AddObjectESP(object, options)
         end
     end
 
+    -- Create optional drawing objects for this object (tracer support)
     local drawObjects = {}
-    if safeNewDrawing and options.Tracer and options.Tracer.Enabled then
+    if DrawingAvailable and options.Tracer and options.Tracer.Enabled then
         local ln = safeNewDrawing("Line")
         if ln then
             ln.Thickness = options.Tracer.Thickness or (options.Thickness or GlobalConfig.Thickness) or 1
@@ -553,7 +545,7 @@ function VelocityESP:AddObjectESP(object, options)
             table.insert(drawObjects, {Obj = ln, Type = "Tracer"})
         end
     end
-    if safeNewDrawing and options.TextLabel and options.TextLabel.Enabled then
+    if DrawingAvailable and options.TextLabel and options.TextLabel.Enabled then
         local txt = safeNewDrawing("Text")
         if txt then
             txt.Size = options.TextLabel.Size or 14
@@ -603,6 +595,7 @@ function VelocityESP:RemoveObjectESP(object)
     if entry.billboard and entry.billboard.Parent then
         pcall(function() entry.billboard:Destroy() end)
     end
+    -- remove any drawings
     if entry.DrawObjects then
         for _, d in ipairs(entry.DrawObjects) do
             if d.Obj and d.Obj.Remove then
@@ -613,6 +606,7 @@ function VelocityESP:RemoveObjectESP(object)
     ObjectESP[foundKey] = nil
 end
 
+-- New: remove all objects with the provided name (works for both Models and Parts)
 function VelocityESP:RemoveObjectsByName(name)
     if not name or type(name) ~= "string" then return end
     for key, entry in pairs(ObjectESP) do
@@ -646,6 +640,7 @@ function VelocityESP:AddObjectsByName(name, options)
 end
 
 function VelocityESP:Render()
+    -- players rendering
     for player, entry in pairs(ESPObjects) do
         local options = entry and entry.Options or {}
         if not IsValidTarget(player) then
@@ -692,13 +687,12 @@ function VelocityESP:Render()
                     local height = math.max(20, math.abs(headScreen.Y - footScreen.Y))
                     local width = height * 0.45
                     local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    -- Removed health text as requested
                     local hpText = ""
-                    if options.ShowHealth and humanoid then
-                        hpText = "\n" .. tostring(math.floor(humanoid.Health)) .. " HP"
-                    end
                     for _, d in ipairs(entry.DrawObjects or {}) do
                         local obj = d.Obj
                         if not obj then
+                            -- skip
                         else
                             pcall(function()
                                 obj.Visible = true
@@ -725,17 +719,17 @@ function VelocityESP:Render()
                                     else
                                         from = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
                                     end
-                                    d.Obj.From = from
-                                    d.Obj.To = footScreen
-                                    d.Obj.Color = ResolveColor((options.Tracer and options.Tracer.Color) or options.Color or ResolveColor(options.Color))
-                                    d.Obj.Thickness = (options.Tracer and options.Tracer.Thickness) or options.Thickness or GlobalConfig.Thickness
-                                    d.Obj.Transparency = (options.Tracer and options.Tracer.Transparency) or GlobalConfig.Transparency or 0
+                                    obj.From = from
+                                    obj.To = footScreen
                                 elseif d.Type == "Text" then
                                     local text = player.Name .. "\n" .. tostring(math.floor(dist)) .. " studs" .. hpText
                                     obj.Text = text
-                                    obj.Position = headScreen + Vector2.new(0, -height / 2 - 20)
-                                    obj.Size = options.Size or 14
-                                    obj.Color = ResolveColor(options.LabelColor or options.Color)
+                                    -- Fixed position calculation to place text properly above the head
+                                    local lines = 1
+                                    for _ in text:gmatch("\n") do lines = lines + 1 end
+                                    local textHeight = obj.Size * lines
+                                    local headY = headScreen.Y
+                                    obj.Position = Vector2.new(headScreen.X, headY - 5 + (textHeight / 2))
                                 elseif d.Type == "Health" then
                                     if humanoid then
                                         local healthPercent = math.clamp(humanoid.Health / (humanoid.MaxHealth ~= 0 and humanoid.MaxHealth or 100), 0, 1)
@@ -753,27 +747,28 @@ function VelocityESP:Render()
                     if entry.Billboard and entry.Billboard.Parent then
                         local label = entry.Billboard:FindFirstChildWhichIsA("TextLabel")
                         if label then
-                            local hpTextLocal = ""
-                            if options.ShowHealth and humanoid then hpTextLocal = tostring(math.floor(humanoid.Health)) .. " HP" end
+                            -- Removed health text as requested
+                            local hpText = ""
                             pcall(function()
-                                label.Text = (player.Name or "") .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpTextLocal ~= "" and ("\n" .. hpTextLocal) or "")
-                                label.TextColor3 = ResolveColor(options.LabelColor or options.Color or (entry.Highlight and entry.Highlight.FillColor) or GlobalConfig.DefaultColor)
+                                label.Text = (player.Name or "") .. "\n" .. tostring(math.floor(dist)) .. " studs" .. (hpText ~= "" and ("\n" .. hpText) or "")
+                                label.TextColor3 = (entry.Options and entry.Options.LabelColor) or (entry.Options and ResolveColor(entry.Options.Color)) or (entry.Highlight and entry.Highlight.FillColor) or GlobalConfig.DefaultColor
                                 label.Visible = true
                             end)
                         end
                     end
                     if entry.Highlight and entry.Highlight.Parent then
-                        if options.Color then
-                            pcall(function() entry.Highlight.FillColor = ResolveColor(options.Color) end)
+                        if entry.Options and entry.Options.Color then
+                            pcall(function() entry.Highlight.FillColor = ResolveColor(entry.Options.Color) end)
                         end
-                        pcall(function() entry.Highlight.FillTransparency = options.FillTransparency or 0.6 end)
-                        pcall(function() entry.Highlight.DepthMode = options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop end)
+                        pcall(function() entry.Highlight.FillTransparency = entry.Options.FillTransparency or 0.6 end)
+                        pcall(function() entry.Highlight.DepthMode = entry.Options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop end)
                     end
                 end
             end
         end
     end
 
+    -- object rendering
     local plrRoot = LocalPlayer and LocalPlayer.Character and GetRoot(LocalPlayer.Character)
     for key, entry in pairs(ObjectESP) do
         local part = entry.obj
@@ -806,7 +801,7 @@ function VelocityESP:Render()
                     end
                     pcall(function()
                         label.Text = (opts.LabelPrefix or "") .. (opts.LabelText or opts.TextlabelText or part.Name) .. "\n" .. tostring(d) .. " studs"
-                        label.TextColor3 = ResolveColor(opts.LabelColor or opts.Color or (hl and hl.FillColor) or GlobalConfig.DefaultColor)
+                        label.TextColor3 = opts.LabelColor or (ResolveColor(opts.Color) or (hl and hl.FillColor) or GlobalConfig.DefaultColor)
                         label.Visible = true
                     end)
                 end
@@ -815,10 +810,13 @@ function VelocityESP:Render()
                 pcall(function() hl.FillColor = ResolveColor(opts.Color) end)
             end
 
+            -- drawings for this object (tracer, text)
             if entry.DrawObjects then
+                -- compute screen pos
                 local screenPos, onScreen = WorldToScreenVec(part.Position)
                 for _, d in ipairs(entry.DrawObjects) do
                     if not d or not d.Obj then
+                        -- skip
                     else
                         pcall(function()
                             if d.Type == "Tracer" then
@@ -840,14 +838,14 @@ function VelocityESP:Render()
                                 end
                                 d.Obj.From = fromVec
                                 d.Obj.To = screenPos
-                                d.Obj.Color = ResolveColor((opts.Tracer and opts.Tracer.Color) or opts.Color or (hl and hl.FillColor) or GlobalConfig.DefaultColor)
+                                d.Obj.Color = ResolveColor((opts.Tracer and opts.Tracer.Color) or opts.Color or hl and hl.FillColor or GlobalConfig.DefaultColor)
                                 d.Obj.Thickness = (opts.Tracer and opts.Tracer.Thickness) or opts.Thickness or GlobalConfig.Thickness
                                 d.Obj.Transparency = (opts.Tracer and opts.Tracer.Transparency) or GlobalConfig.Transparency or 0
                                 d.Obj.Visible = onScreen
                             elseif d.Type == "ObjectText" then
                                 d.Obj.Text = (opts.LabelPrefix or "") .. (opts.LabelText or opts.TextlabelText or part.Name)
                                 d.Obj.Position = screenPos
-                                d.Obj.Color = ResolveColor((opts.TextLabel and opts.TextLabel.Color) or opts.Color or (hl and hl.FillColor) or GlobalConfig.DefaultColor)
+                                d.Obj.Color = ResolveColor((opts.TextLabel and opts.TextLabel.Color) or opts.Color or hl and hl.FillColor or GlobalConfig.DefaultColor)
                                 d.Obj.Visible = onScreen
                             end
                         end)
@@ -947,6 +945,7 @@ function VelocityESP:Start(options)
             self:Render()
         end)
         if not ok then
+            warn("Rendering error: " .. tostring(err)) -- Added warning for errors like in similar libraries
         end
     end))
 end
@@ -958,7 +957,9 @@ function VelocityESP:Stop()
         pcall(function() conn:Disconnect() end)
     end
     Connections = {}
+    -- remove all player ESP
     self:Remove()
+    -- remove all object ESP
     for key, entry in pairs(ObjectESP) do
         if entry and entry.obj then
             self:RemoveObjectESP(entry.obj)
@@ -978,6 +979,43 @@ function VelocityESP:Destroy()
     end
     ESPObjects = {}
     ObjectESP = {}
+end
+
+-- Additional functions for enhanced control (inspired by common ESP features, renamed and integrated uniquely)
+function VelocityESP:ToggleActive(state)
+    if state == true then
+        self:Start()
+    elseif state == false then
+        self:Stop()
+    end
+end
+
+function VelocityESP:SetGlobalFillTransparency(trans)
+    GlobalConfig.Transparency = trans
+    -- Apply to existing
+    for _, entry in pairs(ESPObjects) do
+        if entry.Highlight then
+            entry.Highlight.FillTransparency = trans
+        end
+    end
+    for _, entry in pairs(ObjectESP) do
+        if entry.highlight then
+            entry.highlight.FillTransparency = trans
+        end
+    end
+end
+
+function VelocityESP:AddCustomTextESP(player, textOptions)
+    if not player or not ESPObjects[player] then return end
+    local opts = ESPObjects[player].Options
+    opts.TextLabel = textOptions -- Reuse structure for custom text
+    -- Refresh draw objects
+    ESPObjects[player].DrawObjects = CreateESPObjectsForPlayer(player, opts)
+end
+
+function VelocityESP:RefreshAll()
+    self:Stop()
+    self:Start() -- Simple refresh by restart
 end
 
 getgenv().Velocity_ESP = VelocityESP
