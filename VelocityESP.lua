@@ -1,3 +1,4 @@
+-- VelocityESP (fixed)
 local VelocityESP = {}
 VelocityESP.__index = VelocityESP
 
@@ -19,7 +20,8 @@ getgenv().VelocityESP_GlobalConfig = getgenv().VelocityESP_GlobalConfig or {
 }
 local GlobalConfig = getgenv().VelocityESP_GlobalConfig
 GlobalConfig.StorageFolder.Name = "VelocityESP_Storage"
-GlobalConfig.StorageFolder.Parent = Camera
+-- Parent the storage folder to Workspace to make decorations reliable across different games/camera contexts
+GlobalConfig.StorageFolder.Parent = Workspace
 
 local ESPObjects = {}
 local ObjectESP = {}
@@ -422,42 +424,40 @@ function VelocityESP:AddObjectESP(object, options)
             pcall(function() targetPart.Transparency = 0 end)
         end
     end
-    local hlParent = targetPart
-    if options.ShowWholeModel and object:IsA("Model") then
-        hlParent = object
-    end
+    -- determine adornee for highlight and billboard
+    local billboardAdornee = targetPart
+    local hlAdornee = (options.ShowWholeModel and object:IsA("Model")) and object or targetPart
+
+    -- create highlight; parent it into the dedicated storage folder for reliability
     local hl = nil
-    if options.ShowWholeModel and object:IsA("Model") then
-        local existing = object:FindFirstChild(options.HighlightName or "VelocityESP_Highlight")
-        if existing and existing:IsA("Highlight") then
-            hl = existing
-            hl.Adornee = object
-            hl.Parent = object
+    do
+        local existing = nil
+        if options.ShowWholeModel and object:IsA("Model") then
+            existing = object:FindFirstChild(options.HighlightName or "VelocityESP_Highlight")
         else
-            hl = Instance.new("Highlight")
-            hl.Name = options.HighlightName or "VelocityESP_Highlight"
-            hl.Adornee = object
-            hl.Parent = object
+            existing = targetPart:FindFirstChild(options.HighlightName or "VelocityESP_Highlight")
         end
-    else
-        local existing = targetPart:FindFirstChild(options.HighlightName or "VelocityESP_Highlight")
+
         if existing and existing:IsA("Highlight") then
             hl = existing
-            hl.Adornee = targetPart
-            hl.Parent = targetPart
+            hl.Adornee = hlAdornee
+            -- parent highlight to storage folder to avoid visibility issues
+            hl.Parent = GlobalConfig.StorageFolder
         else
             hl = Instance.new("Highlight")
             hl.Name = options.HighlightName or "VelocityESP_Highlight"
-            hl.Adornee = targetPart
-            hl.Parent = targetPart
+            hl.Adornee = hlAdornee
+            hl.Parent = GlobalConfig.StorageFolder
         end
     end
+
     hl.FillColor = resolvedColor
     hl.FillTransparency = options.FillTransparency or 0.6
     hl.OutlineTransparency = options.OutlineTransparency or 0
     hl.DepthMode = options.DepthMode or Enum.HighlightDepthMode.AlwaysOnTop
+
+    -- create billboard (still parent the billboard to its adornee part, as Billboards should be children of parts)
     local bb = nil
-    local billboardAdornee = targetPart
     if billboardAdornee then
         local existingbb = billboardAdornee:FindFirstChild(options.BillboardName or "VelocityESP_Billboard")
         if existingbb and existingbb:IsA("BillboardGui") then
@@ -496,6 +496,7 @@ function VelocityESP:AddObjectESP(object, options)
             label.Parent = bb
         end
     end
+
     local entry = {
         key = key,
         obj = targetPart,
@@ -767,12 +768,20 @@ function VelocityESP:Start(options)
     if options.Tracers == nil then options.Tracers = false end
     if options.ShowHighlight == nil then options.ShowHighlight = true end
     if options.ShowBillboard == nil then options.ShowBillboard = true end
-    self:AddAllPlayersESP(options)
+
+    -- Only enable player ESP when explicitly requested by passing PlayerESP = { Enabled = true, ... } into Start()
+    if options.PlayerESP and type(options.PlayerESP) == "table" and options.PlayerESP.Enabled then
+        self:AddAllPlayersESP(options.PlayerESP)
+    end
+
     if options.ObjectESP and options.ObjectESP.Enabled then
         self:ObjectESP(options.ObjectESP)
     end
     table.insert(Connections, Players.PlayerAdded:Connect(function(player)
-        self:Add(player, options)
+        -- only auto-add newly joined players if PlayerESP is enabled
+        if options.PlayerESP and type(options.PlayerESP) == "table" and options.PlayerESP.Enabled then
+            self:Add(player, options.PlayerESP)
+        end
     end))
     table.insert(Connections, Players.PlayerRemoving:Connect(function(player)
         self:Remove(player)
@@ -782,6 +791,7 @@ function VelocityESP:Start(options)
             self:Render()
         end)
         if not ok then
+            -- swallow rendering errors silently
         end
     end))
 end
