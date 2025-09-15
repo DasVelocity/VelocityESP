@@ -1,147 +1,132 @@
---!nocheck
---!nolint UnknownGlobal
---[[
+local VERSION = "1.0 FunGlow";
+local ColorPresets = {
+	red = Color3.fromRGB(255, 0, 0),
+	green = Color3.fromRGB(0, 255, 0),
+	blue = Color3.fromRGB(0, 0, 255),
+	yellow = Color3.fromRGB(255, 255, 0),
+	cyan = Color3.fromRGB(0, 255, 255),
+	magenta = Color3.fromRGB(255, 0, 255),
+	white = Color3.fromRGB(255, 255, 255),
+	black = Color3.fromRGB(0, 0, 0),
+	orange = Color3.fromRGB(255, 165, 0),
+	purple = Color3.fromRGB(128, 0, 128),
+	pink = Color3.fromRGB(255, 192, 203),
+	brown = Color3.fromRGB(165, 42, 42),
+	gray = Color3.fromRGB(128, 128, 128),
+	lightgray = Color3.fromRGB(211, 211, 211),
+	darkgray = Color3.fromRGB(64, 64, 64),
+	lime = Color3.fromRGB(50, 205, 50),
+	navy = Color3.fromRGB(0, 0, 128),
+	gold = Color3.fromRGB(255, 215, 0),
+	silver = Color3.fromRGB(192, 192, 192),
+	crimson = Color3.fromRGB(220, 20, 60),
+	azure = Color3.fromRGB(240, 255, 255),
+	beige = Color3.fromRGB(245, 245, 220),
+	coral = Color3.fromRGB(255, 127, 80),
+	fuchsia = Color3.fromRGB(255, 0, 255),
+	indigo = Color3.fromRGB(75, 0, 130),
+	lavender = Color3.fromRGB(230, 230, 250),
+	maroon = Color3.fromRGB(128, 0, 0),
+	olive = Color3.fromRGB(128, 128, 0),
+	plum = Color3.fromRGB(221, 160, 221),
+	salmon = Color3.fromRGB(250, 128, 114),
+	sienna = Color3.fromRGB(160, 82, 45),
+	tan = Color3.fromRGB(210, 180, 140),
+	teal = Color3.fromRGB(0, 128, 128),
+	turquoise = Color3.fromRGB(64, 224, 208),
+	violet = Color3.fromRGB(238, 130, 238),
+	wheat = Color3.fromRGB(245, 222, 179),
+	aliceblue = Color3.fromRGB(240, 248, 255),
+	antiquewhite = Color3.fromRGB(250, 235, 215),
+	aquamarine = Color3.fromRGB(127, 255, 212),
+	bisque = Color3.fromRGB(255, 228, 196),
+	blanchedalmond = Color3.fromRGB(255, 235, 205),
+	blueviolet = Color3.fromRGB(138, 43, 226),
+	cadetblue = Color3.fromRGB(95, 158, 160),
+	chartreuse = Color3.fromRGB(127, 255, 0),
+	chocolate = Color3.fromRGB(210, 105, 30),
+	cornflowerblue = Color3.fromRGB(100, 149, 237),
+	darkblue = Color3.fromRGB(0, 0, 139),
+	darkgreen = Color3.fromRGB(0, 100, 0),
+	darkorange = Color3.fromRGB(255, 140, 0),
+	darkred = Color3.fromRGB(139, 0, 0)
+};
 
-		 ▄▄▄▄███▄▄▄▄      ▄████████         ▄████████    ▄████████    ▄███████▄
-		▄██▀▀▀███▀▀▀██▄   ███    ███        ███    ███   ███    ███   ███    ███
-		███   ███   ███   ███    █▀         ███    █▀    ███    █▀    ███    ███
-		███   ███   ███   ███              ▄███▄▄▄       ███          ███    ███
-		███   ███   ███ ▀███████████      ▀▀███▀▀▀     ▀███████████ ▀█████████▀
-		███   ███   ███          ███        ███    █▄           ███   ███
-		███   ███   ███    ▄█    ███        ███    ███    ▄█    ███   ███
-		▀█   ███   █▀   ▄████████▀         ██████████  ▄████████▀   ▄████▀
-									v2.0.2
-
-						 Created by DasVelocity (GitHub)
-				Contributors: Dottik, Master Oogway, deividcomsono
---]]
-
---[[
-	https://github.com/DasVelocity/VelocityESP
-
-	VelocityESP:Add({
-		Name : string [optional, defaults to Model.Name]
-
-		Model : Instance [required]  -- The object to highlight (e.g., a character model)
-		TextModel : Instance [optional, defaults to Model]  -- Separate object for text positioning
-		
-		-- General Settings (Simplified) --
-		Visible : boolean [optional, default = true]  -- Show/hide the ESP
-		Color : Color3 [optional, default = Color3.new(1,1,1)]  -- Main color for ESP elements
-		MaxDistance : number [optional, default = 5000]  -- Max render distance
-		
-		-- Text Label Settings --
-		StudsOffset : Vector3 [optional, default = Vector3.new(0,0,0)]  -- Offset for text position
-		TextSize : number [optional, default = 16]  -- Font size for name/distance text
-		
-		-- Highlight Type (Choose one simple type) --
-		ESPType : "Text" | "Sphere" | "Cylinder" | "Box" | "BoxOutline" | "Highlight" [optional, default = "Highlight"]
-		-- Note: "Sphere", "Cylinder", "Box" are adornments; "BoxOutline" is SelectionBox; "Highlight" is Roblox Highlight.
-		Thickness : number [optional, default = 0.1]  -- Line thickness for outlines/boxes
-		Transparency : number [optional, default = 0.65]  -- Opacity (0 = opaque, 1 = transparent)
-
-		-- For BoxOutline (SelectionBox) --
-		SurfaceColor : Color3 [optional, default = Color3.new(1,1,1)]  -- Color for surface fill
-		
-		-- For Highlight --
-		FillColor : Color3 [optional, default = Color3.new(1,1,1)]  -- Inner fill color
-		OutlineColor : Color3 [optional, default = Color3.new(1,1,1)]  -- Outline color
-		FillTransparency : number [optional, default = 0.65]
-		OutlineTransparency : number [optional, default = 0]
-			
-		-- Tracer Settings (Line from screen to target) --
-		Tracer = {
-			Enabled : boolean [optional, default = false]  -- Enable tracer line
-
-			Color : Color3 [optional, default = Color3.new(1,1,1)]  -- Tracer color
-			Thickness : number [optional, default = 2]  -- Line thickness
-			Transparency : number [optional, default = 0]  -- Opacity (0 = opaque, 1 = transparent; note: inverted from Roblox)
-			From : "Top" | "Bottom" | "Center" | "Mouse" [optional, default = "Bottom"]  -- Starting point on screen
-		}
-
-		-- Arrow Settings (Off-screen indicator) --
-		Arrow = {
-			Enabled : boolean [optional, default = false]  -- Enable arrow pointer
-
-			Color : Color3 [optional, default = Color3.new(1,1,1)]  -- Arrow color
-			CenterOffset : number [optional, default = 300]  -- Distance from screen center
-		}
-
-		-- Cleanup Settings --
-		OnDestroy : BindableEvent [optional]  -- Event fired on destroy
-		OnDestroyFunc : function [optional]  -- Function called on destroy
-	})
---]]
-
-local VERSION = "2.0.2";
-local debug_print = if getgenv().VelocityESP_DEBUG then (function(...) print("[Velocity ESP]", ...) end) else (function() end);
-local debug_warn  = if getgenv().VelocityESP_DEBUG then (function(...) warn("[Velocity ESP]", ...) end) else (function() end);
-local debug_error = if getgenv().VelocityESP_DEBUG then (function(...) error("[Velocity ESP] " .. table.concat({ ... }, " ")) end) else (function() end);
-
-if getgenv().VelocityESP then
-	debug_warn("Already Loaded.")
-	return getgenv().VelocityESP
+local function ResolveColor(color)
+	if typeof(color) == "string" then
+		local preset = ColorPresets[string.lower(color)]
+		if preset then return preset end
+	end
+	return color
 end
 
-export type TracerESPSettings = {
-	Enabled: boolean,
+if getgenv().FunGlow then
+	return getgenv().FunGlow
+end
 
-	Color: Color3?,
-	Thickness: number?,
-	Transparency: number?,
-	From: ("Top" | "Bottom" | "Center" | "Mouse")?,
+export type TargetLineSettings = {
+	ShowLine: boolean,
+
+	LineColor: Color3?,
+	LineWidth: number?,
+	LineOpacity: number?,
+	StartPoint: ("Top" | "Bottom" | "Center" | "Mouse")?,
 }
 
-export type ArrowESPSettings = {
-	Enabled: boolean,
+export type ScreenArrowSettings = {
+	ShowArrow: boolean,
 
-	Color: Color3?,
-	CenterOffset: number?,
+	ArrowColor: Color3?,
+	ArrowDist: number?,
 }
 
-export type ESPSettings = {
-	Name: string?,
+export type GlowSettings = {
+	LabelText: string?,
 
-	Model: Instance,
-	TextModel: Instance?,
+	TargetModel: Instance,
+	TextAnchor: Instance?,
 
-	Visible: boolean?,
-	Color: Color3?,
-	MaxDistance: number?,
+	IsVisible: boolean?,
+	MainColor: Color3?,
+	MaxViewDist: number?,
 
-	StudsOffset: Vector3?,
-	TextSize: number?,
+	TextOffset: Vector3?,
+	TextScale: number?,
 
-	ESPType: ("Text" | "Sphere" | "Cylinder" | "Box" | "BoxOutline" | "Highlight")?,
-	Thickness: number?,
-	Transparency: number?,
+	ESPTypes: {
+		Text: boolean?,
+		Sphere: boolean?,
+		Cylinder: boolean?,
+		Box: boolean?,
+		BoxOutline: boolean?,
+		Highlight: boolean?
+	}?,
+	OutlineWidth: number?,
+	FillOpacity: number?,
 
-	SurfaceColor: Color3?,
+	BoxFillColor: Color3?,
 
-	FillColor: Color3?,
-	OutlineColor: Color3?,
+	InnerColor: Color3?,
+	EdgeColor: Color3?,
 
-	FillTransparency: number?,
-	OutlineTransparency: number?,
+	InnerOpacity: number?,
+	EdgeOpacity: number?,
 
-	Tracer: TracerESPSettings?,
-	Arrow: ArrowESPSettings?,
+	TargetLine: TargetLineSettings?,
+	ScreenArrow: ScreenArrowSettings?,
 
 	OnDestroy: BindableEvent?,
 	OnDestroyFunc: (() -> nil)?,
 }
 
---// Executor Variables \\--
 local cloneref = getgenv().cloneref or function(inst) return inst; end
 local getui;
 
---// Services \\--
 local Players = cloneref(game:GetService("Players"))
 local RunService = cloneref(game:GetService("RunService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local CoreGui = cloneref(game:GetService("CoreGui"))
 
--- // Variables // --
 local tablefreeze = function<T>(provided_table: T): T
 	local proxy = {}
 	local data = table.clone(provided_table)
@@ -152,15 +137,13 @@ local tablefreeze = function<T>(provided_table: T): T
 		end,
 
 		__newindex = function(table, key, value)
-			-- nope --
 		end
 	}
 
 	return setmetatable(proxy, mt) :: typeof(provided_table)
 end
 
---// Functions \\--
-local function GetPivot(Instance: Bone | Attachment | CFrame | PVInstance)
+local function GetPivot(Instance)
 	if Instance.ClassName == "Bone" then
 		return Instance.TransformedWorldCFrame
 	elseif Instance.ClassName == "Attachment" then
@@ -172,7 +155,7 @@ local function GetPivot(Instance: Bone | Attachment | CFrame | PVInstance)
 	end
 end
 
-local function RandomString(length: number?)
+local function RandomString(length)
 	length = tonumber(length) or math.random(10, 20)
 
 	local array = {}
@@ -183,16 +166,12 @@ local function RandomString(length: number?)
 	return table.concat(array)
 end
 
--- // Instances // --
 local InstancesLib = {
 	Create = function(instanceType, properties)
-		assert(typeof(instanceType) == "string", "Argument #1 must be a string.")
-		assert(typeof(properties) == "table", "Argument #2 must be a table.")
-
 		local instance = Instance.new(instanceType)
 		for name, val in pairs(properties) do
 			if name == "Parent" then
-				continue -- Parenting is expensive, do last.
+				continue
 			end
 
 			instance[name] = val
@@ -206,9 +185,6 @@ local InstancesLib = {
 	end,
 
 	TryGetProperty = function(instance, propertyName)
-		assert(typeof(instance) == "Instance", "Argument #1 must be an Instance.")
-		assert(typeof(propertyName) == "string", "Argument #2 must be a string.")
-
 		local success, property = pcall(function()
 			return instance[propertyName]
 		end)
@@ -239,7 +215,6 @@ local InstancesLib = {
 	end
 }
 
---// HiddenUI test \\--
 do
 	local testGui = Instance.new("ScreenGui")
 	local successful = pcall(function()
@@ -247,7 +222,6 @@ do
 	end)
 
 	if not successful then
-		debug_warn("CoreGUI is not accessible!")
 		getui = function() return Players.LocalPlayer.PlayerGui; end;
 	else
 		getui = function() return CoreGui end;
@@ -256,7 +230,6 @@ do
 	testGui:Destroy()
 end
 
---// GUI \\--
 local ActiveFolder = InstancesLib.Create("Folder", {
 	Parent = getui(),
 	Name = RandomString()
@@ -285,11 +258,9 @@ local BillboardGUI = InstancesLib.Create("ScreenGui", {
 	DisplayOrder = 999_999
 })
 
--- // Library // --
 local Library = {
 	Destroyed = false,
 
-	-- // Storages // --
 	ActiveFolder = ActiveFolder,
 	StorageFolder = StorageFolder,
 	MainGUI = MainGUI,
@@ -297,31 +268,28 @@ local Library = {
 	ESP = {},
 	Connections = {},
 
-	-- // Global Config (Simplified toggles) --
 	GlobalConfig = {
-		IgnoreCharacter = false,  -- Ignore local player character for distance calc
-		Rainbow = false,  -- Enable rainbow color cycling
+		IgnoreSelf = false,
+		ColorCycle = false,
 
-		Billboards = true,  -- Toggle all text labels
-		Highlighters = true,  -- Toggle all highlights/outlines
-		Distance = true,  -- Show distance in text labels
-		Tracers = true,  -- Toggle all tracers
-		Arrows = true,  -- Toggle all arrows
+		ShowNames = true,
+		ShowESP = true,
+		ShowDist = true,
+		ShowLines = true,
+		ShowArrows = true,
 
-		Font = Enum.Font.RobotoCondensed  -- Global font for text
+		TextFont = Enum.Font.RobotoCondensed
 	},
 
-	-- // Rainbow Variables // --
 	RainbowHueSetup = 0,
 	RainbowHue = 0,
 	RainbowStep = 0,
 	RainbowColor = Color3.new()
 }
 
--- // Player Variables // --
 local character: Model
-local rootPart: Part?
-local camera: Camera = workspace.CurrentCamera
+local rootPart
+local camera = workspace.CurrentCamera
 
 local function worldToViewport(...)
 	camera = (camera or workspace.CurrentCamera);
@@ -333,12 +301,10 @@ local function worldToViewport(...)
 	return camera:WorldToViewportPoint(...)
 end
 
-local function UpdatePlayerVariables(newCharacter: any, force: boolean?)
-	if force ~= true and Library.GlobalConfig.IgnoreCharacter == true then
-		debug_warn("UpdatePlayerVariables: IgnoreCharacter enabled.")
+local function UpdatePlayerVariables(newCharacter, force)
+	if force ~= true and Library.GlobalConfig.IgnoreSelf == true then
 		return
 	end
-	debug_print("Updating Player Variables...")
 
 	character = newCharacter or Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait();
 	rootPart =
@@ -350,7 +316,6 @@ local function UpdatePlayerVariables(newCharacter: any, force: boolean?)
 end
 task.spawn(UpdatePlayerVariables, nil, true);
 
---// Library Functions \\--
 function Library:Clear()
 	if Library.Destroyed == true then
 		return
@@ -375,7 +340,6 @@ function Library:Destroy()
 	MainGUI:Destroy();
 	BillboardGUI:Destroy();
 
-	--// Clear connections \\--
 	for _, connection in Library.Connections do
 		if not connection.Connected then
 			continue
@@ -386,12 +350,10 @@ function Library:Destroy()
 
 	table.clear(Library.Connections)
 
-	getgenv().VelocityESP = nil;
-	debug_print("Unloaded!")
+	getgenv().FunGlow = nil;
 end
 
---// Type Checks \\--
-local AllowedTracerFrom = {
+local AllowedStartPoint = {
 	top = true,
 	bottom = true,
 	center = true,
@@ -407,90 +369,75 @@ local AllowedESPType = {
 	highlight = true,
 }
 
---// ESP Instances \\--
-function TracerCreate(espSettings: TracerESPSettings, instanceName: string?)
+function TargetLineCreate(lineSettings, instanceName)
 	if Library.Destroyed == true then
-		debug_warn("Library is destroyed, please reload it.")
 		return
 	end
 
-	if not espSettings then
-		espSettings = {}
+	if not lineSettings then
+		lineSettings = {}
 	end
 
-	if espSettings.Enabled ~= true then
-		debug_warn("Tracer is not enabled.")
+	if lineSettings.ShowLine ~= true then
 		return
 	end
-	debug_print("Creating Tracer...")
 
-	-- // Fix Settings // --
-	espSettings.Color = typeof(espSettings.Color) == "Color3" and espSettings.Color or Color3.new(1,1,1)
-	espSettings.Thickness = typeof(espSettings.Thickness) == "number" and espSettings.Thickness or 2
-	espSettings.Transparency = typeof(espSettings.Transparency) == "number" and espSettings.Transparency or 0
-	espSettings.From = string.lower(typeof(espSettings.From) == "string" and espSettings.From or "bottom")
-	if AllowedTracerFrom[espSettings.From] == nil then
-		espSettings.From = "bottom"
+	lineSettings.LineColor = ResolveColor(lineSettings.LineColor or Color3.new(1,1,1))
+	lineSettings.LineWidth = typeof(lineSettings.LineWidth) == "number" and lineSettings.LineWidth or 2
+	lineSettings.LineOpacity = typeof(lineSettings.LineOpacity) == "number" and lineSettings.LineOpacity or 0
+	lineSettings.StartPoint = string.lower(typeof(lineSettings.StartPoint) == "string" and lineSettings.StartPoint or "bottom")
+	if AllowedStartPoint[lineSettings.StartPoint] == nil then
+		lineSettings.StartPoint = "bottom"
 	end
 
-	-- // Create Path2D // --
 	local Path2D = InstancesLib.Create("Path2D", {
 		Parent = MainGUI,
-		Name = if typeof(instanceName) == "string" then instanceName else "Tracer",
+		Name = if typeof(instanceName) == "string" then instanceName else "TargetLine",
 		Closed = true,
 
-		-- // Settings // --
-		Color3 = espSettings.Color,
-		Thickness = espSettings.Thickness,
-		Transparency = espSettings.Transparency,
+		Color3 = lineSettings.LineColor,
+		Thickness = lineSettings.LineWidth,
+		Transparency = lineSettings.LineOpacity,
 	})
 
-	local function UpdateTracer(from: Vector2, to: Vector2)
+	local function UpdateLine(from, to)
 		Path2D:SetControlPoints({
 			Path2DControlPoint.new(UDim2.fromOffset(from.X, from.Y)),
 			Path2DControlPoint.new(UDim2.fromOffset(to.X, to.Y))
 		})
 	end
 
-	--// Data Table \\--
 	local data = {
-		From = typeof(espSettings.From) ~= "Vector2" and UDim2.fromOffset(0, 0) or UDim2.fromOffset(espSettings.From.X, espSettings.From.Y),
-		To = typeof(espSettings.To) ~= "Vector2" and UDim2.fromOffset(0, 0) or UDim2.fromOffset(espSettings.To.X, espSettings.To.Y),
+		From = UDim2.fromOffset(0, 0),
+		To = UDim2.fromOffset(0, 0),
 
 		Visible = true,
-		Color3 = espSettings.Color,
-		Thickness = espSettings.Thickness,
-		Transparency = espSettings.Transparency,
+		Color3 = lineSettings.LineColor,
+		Thickness = lineSettings.LineWidth,
+		Transparency = lineSettings.LineOpacity,
 	}
-	UpdateTracer(data.From, data.To);
+	UpdateLine(data.From, data.To);
 
-	--// Tracer Metatable \\--
 	local proxy = {}
-	local Tracer = {
+	local LineMT = {
 		__newindex = function(table, key, value)
 			if not Path2D then
 				return
 			end
 
 			if key == "From" then
-				assert(typeof(value) == "Vector2", tostring(key) .. "; expected Vector2, got " .. typeof(value))
-				UpdateTracer(value, data.To)
+				UpdateLine(value, data.To)
 
 			elseif key == "To" then
-				assert(typeof(value) == "Vector2", tostring(key) .. "; expected Vector2, got " .. typeof(value))
-				UpdateTracer(data.From, value)
+				UpdateLine(data.From, value)
 
-			elseif key == "Transparency" or key == "Thickness" then
-				assert(typeof(value) == "number", tostring(key) .. "; expected number, got " .. typeof(value))
-				Path2D[key] = value
+			elseif key == "LineOpacity" or key == "LineWidth" then
+				Path2D[key:lower()] = value
 
-			elseif key == "Color3" then
-				assert(typeof(value) == "Color3", tostring(key) .. "; expected Color3, got " .. typeof(value))
+			elseif key == "LineColor" then
 				Path2D.Color3 = value
 
 			elseif key == "Visible" then
-				assert(typeof(value) == "boolean", tostring(key) .. "; expected boolean, got " .. typeof(value))
-
 				Path2D.Parent = if value then MainGUI else StorageFolder;
 			end
 
@@ -515,77 +462,74 @@ function TracerCreate(espSettings: TracerESPSettings, instanceName: string?)
 		end,
 	}
 
-	debug_print("Tracer created.")
-	return setmetatable(proxy, Tracer) :: typeof(data)
+	return setmetatable(proxy, LineMT) :: typeof(data)
 end
 
-function Library:Add(espSettings: ESPSettings)
+function Library:Add(glowSettings)
 	if Library.Destroyed == true then
-		debug_warn("Library is destroyed, please reload it.")
 		return
 	end
 
-	assert(typeof(espSettings) == "table", "espSettings; expected table, got " .. typeof(espSettings))
+	assert(typeof(glowSettings) == "table", "glowSettings; expected table, got " .. typeof(glowSettings))
 	assert(
-		typeof(espSettings.Model) == "Instance",
-		"espSettings.Model; expected Instance, got " .. typeof(espSettings.Model)
+		typeof(glowSettings.TargetModel) == "Instance",
+		"glowSettings.TargetModel; expected Instance, got " .. typeof(glowSettings.TargetModel)
 	)
 
-	-- // Fix ESPType (Simplified mapping) //
-	if not espSettings.ESPType then
-		espSettings.ESPType = "Highlight"
+	local espTypes = glowSettings.ESPTypes or {Text = false, Sphere = false, Cylinder = false, Box = false, BoxOutline = false, Highlight = true}
+	local espType = nil
+	for k, v in pairs(espTypes) do
+		if v then
+			if espType then
+				espType = "Highlight"
+				break
+			end
+			espType = k
+		end
 	end
-	assert(
-		typeof(espSettings.ESPType) == "string",
-		"espSettings.ESPType; expected string, got " .. typeof(espSettings.ESPType)
-	)
+	if not espType then espType = "Highlight" end
 
-	espSettings.ESPType = string.lower(espSettings.ESPType)
-	if espSettings.ESPType == "sphere" then espSettings.ESPType = "sphereadornment" end
-	if espSettings.ESPType == "cylinder" then espSettings.ESPType = "cylinderadornment" end
-	if espSettings.ESPType == "box" then espSettings.ESPType = "adornment" end
-	if espSettings.ESPType == "boxoutline" then espSettings.ESPType = "selectionbox" end
-	assert(AllowedESPType[espSettings.ESPType] == true, "espSettings.ESPType; invalid ESPType")
+	espType = string.lower(espType)
+	if espType == "sphere" then espType = "sphereadornment" end
+	if espType == "cylinder" then espType = "cylinderadornment" end
+	if espType == "box" then espType = "adornment" end
+	if espType == "boxoutline" then espType = "selectionbox" end
+	assert(AllowedESPType[espType] == true, "glowSettings.ESPType; invalid ESPType")
 
-	-- // Fix Settings (Defaults made explicit and simple) //
-	espSettings.Name = if typeof(espSettings.Name) == "string" then espSettings.Name else espSettings.Model.Name;
-	espSettings.TextModel = if typeof(espSettings.TextModel) == "Instance" then espSettings.TextModel else espSettings.Model;
+	glowSettings.LabelText = if typeof(glowSettings.LabelText) == "string" then glowSettings.LabelText else glowSettings.TargetModel.Name;
+	glowSettings.TextAnchor = if typeof(glowSettings.TextAnchor) == "Instance" then glowSettings.TextAnchor else glowSettings.TargetModel;
 
-	espSettings.Visible = if typeof(espSettings.Visible) == "boolean" then espSettings.Visible else true;
-	espSettings.Color = if typeof(espSettings.Color) == "Color3" then espSettings.Color else Color3.new(1,1,1);
-	espSettings.MaxDistance = if typeof(espSettings.MaxDistance) == "number" then espSettings.MaxDistance else 5000;
+	glowSettings.IsVisible = if typeof(glowSettings.IsVisible) == "boolean" then glowSettings.IsVisible else true;
+	glowSettings.MainColor = ResolveColor(glowSettings.MainColor or Color3.new(1,1,1));
+	glowSettings.MaxViewDist = if typeof(glowSettings.MaxViewDist) == "number" then glowSettings.MaxViewDist else 5000;
 
-	espSettings.StudsOffset = if typeof(espSettings.StudsOffset) == "Vector3" then espSettings.StudsOffset else Vector3.new();
-	espSettings.TextSize = if typeof(espSettings.TextSize) == "number" then espSettings.TextSize else 16;
+	glowSettings.TextOffset = if typeof(glowSettings.TextOffset) == "Vector3" then glowSettings.TextOffset else Vector3.new();
+	glowSettings.TextScale = if typeof(glowSettings.TextScale) == "number" then glowSettings.TextScale else 16;
 
-	espSettings.Thickness = if typeof(espSettings.Thickness) == "number" then espSettings.Thickness else 0.1;
-	espSettings.Transparency = if typeof(espSettings.Transparency) == "number" then espSettings.Transparency else 0.65;
+	glowSettings.OutlineWidth = if typeof(glowSettings.OutlineWidth) == "number" then glowSettings.OutlineWidth else 0.1;
+	glowSettings.FillOpacity = if typeof(glowSettings.FillOpacity) == "number" then glowSettings.FillOpacity else 0.65;
 
-	espSettings.SurfaceColor = if typeof(espSettings.SurfaceColor) == "Color3" then espSettings.SurfaceColor else Color3.new(1,1,1);
-	espSettings.FillColor = if typeof(espSettings.FillColor) == "Color3" then espSettings.FillColor else Color3.new(1,1,1);
-	espSettings.OutlineColor = if typeof(espSettings.OutlineColor) == "Color3" then espSettings.OutlineColor else Color3.new(1, 1, 1);
+	glowSettings.BoxFillColor = ResolveColor(glowSettings.BoxFillColor or Color3.new(1,1,1));
+	glowSettings.InnerColor = ResolveColor(glowSettings.InnerColor or Color3.new(1,1,1));
+	glowSettings.EdgeColor = ResolveColor(glowSettings.EdgeColor or Color3.new(1, 1, 1));
 
-	espSettings.FillTransparency = if typeof(espSettings.FillTransparency) == "number" then espSettings.FillTransparency else 0.65;
-	espSettings.OutlineTransparency = if typeof(espSettings.OutlineTransparency) == "number" then espSettings.OutlineTransparency else 0;
+	glowSettings.InnerOpacity = if typeof(glowSettings.InnerOpacity) == "number" then glowSettings.InnerOpacity else 0.65;
+	glowSettings.EdgeOpacity = if typeof(glowSettings.EdgeOpacity) == "number" then glowSettings.EdgeOpacity else 0;
 
-	espSettings.Tracer = if typeof(espSettings.Tracer) == "table" then espSettings.Tracer else { Enabled = false };
-	espSettings.Arrow = if typeof(espSettings.Arrow) == "table" then espSettings.Arrow else { Enabled = false };
+	glowSettings.TargetLine = if typeof(glowSettings.TargetLine) == "table" then glowSettings.TargetLine else { ShowLine = false };
+	glowSettings.ScreenArrow = if typeof(glowSettings.ScreenArrow) == "table" then glowSettings.ScreenArrow else { ShowArrow = false };
 
-	--// ESP Data \\--
 	local ESP = {
 		Index = RandomString(),
-		OriginalSettings = tablefreeze(espSettings),
-		CurrentSettings = espSettings,
+		OriginalSettings = tablefreeze(glowSettings),
+		CurrentSettings = glowSettings,
 
 		Hidden = false,
 		Deleted = false,
-		Connections = {} :: { RBXScriptConnection },
-		RenderThread = nil :: thread?
+		Connections = {},
+		RenderThread = nil
 	}
 
-	debug_print("Creating ESP...", ESP.Index, "-", ESP.CurrentSettings.Name)
-
-	-- // Create Billboard // --
 	local Billboard = InstancesLib.Create("BillboardGui", {
 		Parent = BillboardGUI,
 		Name = ESP.Index,
@@ -595,64 +539,58 @@ function Library:Add(espSettings: ESPSettings)
 		AlwaysOnTop = true,
 		Size = UDim2.new(0, 200, 0, 50),
 
-		-- // Settings // --
-		Adornee = ESP.CurrentSettings.TextModel or ESP.CurrentSettings.Model,
-		StudsOffset = ESP.CurrentSettings.StudsOffset or Vector3.new(),
+		Adornee = ESP.CurrentSettings.TextAnchor or ESP.CurrentSettings.TargetModel,
+		StudsOffset = ESP.CurrentSettings.TextOffset or Vector3.new(),
 	})
 
 	local BillboardText = InstancesLib.Create("TextLabel", {
 		Parent = Billboard,
 
 		Size = UDim2.new(0, 200, 0, 50),
-		Font = Library.GlobalConfig.Font,
+		Font = Library.GlobalConfig.TextFont,
 		TextWrap = true,
 		TextWrapped = true,
 		RichText = true,
 		TextStrokeTransparency = 0,
 		BackgroundTransparency = 1,
 
-		-- // Settings // --
-		Text = ESP.CurrentSettings.Name,
-		TextColor3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
-		TextSize = ESP.CurrentSettings.TextSize or 16,
+		Text = ESP.CurrentSettings.LabelText,
+		TextColor3 = ESP.CurrentSettings.MainColor or Color3.new(1,1,1),
+		TextSize = ESP.CurrentSettings.TextScale or 16,
 	})
 
 	InstancesLib.Create("UIStroke", {
 		Parent = BillboardText
 	})
 
-	-- // Create Highlighter // --
-	local Highlighter, IsAdornment = nil, not not string.match(string.lower(ESP.OriginalSettings.ESPType), "adornment") or ESP.OriginalSettings.ESPType == "text"
-	debug_print("Creating Highlighter...", ESP.OriginalSettings.ESPType, IsAdornment)
+	local Highlighter, IsAdornment = nil, not not string.match(string.lower(ESP.OriginalSettings.ESPTypes and "highlight" or espType), "adornment") or espType == "text"
 
-	if ESP.OriginalSettings.ESPType == "text" then
-		-- No highlighter for text-only
+	if espType == "text" then
 	elseif IsAdornment then
-		local _, ModelSize = nil, nil
-		if ESP.CurrentSettings.Model:IsA("Model") then
-			_, ModelSize = ESP.CurrentSettings.Model:GetBoundingBox()
+		local _, ModelSize
+		if ESP.CurrentSettings.TargetModel:IsA("Model") then
+			_, ModelSize = ESP.CurrentSettings.TargetModel:GetBoundingBox()
 		else
-			if not InstancesLib.TryGetProperty(ESP.CurrentSettings.Model, "Size") then
-				local prim = InstancesLib.FindPrimaryPart(ESP.CurrentSettings.Model)
+			if not InstancesLib.TryGetProperty(ESP.CurrentSettings.TargetModel, "Size") then
+				local prim = InstancesLib.FindPrimaryPart(ESP.CurrentSettings.TargetModel)
 				if not InstancesLib.TryGetProperty(prim, "Size") then
-					debug_print("Couldn't get model size, switching to Highlight.", ESP.Index, "-", ESP.CurrentSettings.Name)
 
-					espSettings.ESPType = "Highlight"
-					return Library:Add(espSettings)
+					glowSettings.ESPTypes = {Highlight = true}
+					return Library:Add(glowSettings)
 				end
 
 				ModelSize = prim.Size
 			else
-				ModelSize = ESP.CurrentSettings.Model.Size
+				ModelSize = ESP.CurrentSettings.TargetModel.Size
 			end
 		end
 
-		if ESP.OriginalSettings.ESPType == "sphereadornment" then
+		if espType == "sphereadornment" then
 			Highlighter = InstancesLib.Create("SphereHandleAdornment", {
 				Parent = ActiveFolder,
 				Name = ESP.Index,
 
-				Adornee = ESP.CurrentSettings.Model,
+				Adornee = ESP.CurrentSettings.TargetModel,
 
 				AlwaysOnTop = true,
 				ZIndex = 10,
@@ -660,16 +598,15 @@ function Library:Add(espSettings: ESPSettings)
 				Radius = ModelSize.X * 1.085,
 				CFrame = CFrame.new() * CFrame.Angles(math.rad(90), 0, 0),
 
-				-- // Settings // --
-				Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
-				Transparency = ESP.CurrentSettings.Transparency or 0.65,
+				Color3 = ESP.CurrentSettings.MainColor or Color3.new(1,1,1),
+				Transparency = ESP.CurrentSettings.FillOpacity or 0.65,
 			})
-		elseif ESP.OriginalSettings.ESPType == "cylinderadornment" then
+		elseif espType == "cylinderadornment" then
 			Highlighter = InstancesLib.Create("CylinderHandleAdornment", {
 				Parent = ActiveFolder,
 				Name = ESP.Index,
 
-				Adornee = ESP.CurrentSettings.Model,
+				Adornee = ESP.CurrentSettings.TargetModel,
 
 				AlwaysOnTop = true,
 				ZIndex = 10,
@@ -678,67 +615,61 @@ function Library:Add(espSettings: ESPSettings)
 				Radius = ModelSize.X * 1.085,
 				CFrame = CFrame.new() * CFrame.Angles(math.rad(90), 0, 0),
 
-				-- // Settings // --
-				Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
-				Transparency = ESP.CurrentSettings.Transparency or 0.65,
+				Color3 = ESP.CurrentSettings.MainColor or Color3.new(1,1,1),
+				Transparency = ESP.CurrentSettings.FillOpacity or 0.65,
 			})
 		else
 			Highlighter = InstancesLib.Create("BoxHandleAdornment", {
 				Parent = ActiveFolder,
 				Name = ESP.Index,
 
-				Adornee = ESP.CurrentSettings.Model,
+				Adornee = ESP.CurrentSettings.TargetModel,
 
 				AlwaysOnTop = true,
 				ZIndex = 10,
 
 				Size = ModelSize,
 
-				-- // Settings // --
-				Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
-				Transparency = ESP.CurrentSettings.Transparency or 0.65,
+				Color3 = ESP.CurrentSettings.MainColor or Color3.new(1,1,1),
+				Transparency = ESP.CurrentSettings.FillOpacity or 0.65,
 			})
 		end
-	elseif ESP.OriginalSettings.ESPType == "selectionbox" then
+	elseif espType == "selectionbox" then
 		Highlighter = InstancesLib.Create("SelectionBox", {
 			Parent = ActiveFolder,
 			Name = ESP.Index,
 
-			Adornee = ESP.CurrentSettings.Model,
+			Adornee = ESP.CurrentSettings.TargetModel,
 
-			Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
-			LineThickness = ESP.CurrentSettings.Thickness or 0.1,
+			Color3 = ESP.CurrentSettings.MainColor or Color3.new(1,1,1),
+			LineThickness = ESP.CurrentSettings.OutlineWidth or 0.1,
 
-			SurfaceColor3 = ESP.CurrentSettings.SurfaceColor or Color3.new(1,1,1),
-			SurfaceTransparency = ESP.CurrentSettings.Transparency or 0.65,
+			SurfaceColor3 = ESP.CurrentSettings.BoxFillColor or Color3.new(1,1,1),
+			SurfaceTransparency = ESP.CurrentSettings.FillOpacity or 0.65,
 		})
-	elseif ESP.OriginalSettings.ESPType == "highlight" then
+	elseif espType == "highlight" then
 		Highlighter = InstancesLib.Create("Highlight", {
 			Parent = ActiveFolder,
 			Name = ESP.Index,
 
-			Adornee = ESP.CurrentSettings.Model,
+			Adornee = ESP.CurrentSettings.TargetModel,
 
-			-- // Settings // --
-			FillColor = ESP.CurrentSettings.FillColor or Color3.new(1,1,1),
-			OutlineColor = ESP.CurrentSettings.OutlineColor or Color3.new(1, 1, 1),
+			FillColor = ESP.CurrentSettings.InnerColor or Color3.new(1,1,1),
+			OutlineColor = ESP.CurrentSettings.EdgeColor or Color3.new(1, 1, 1),
 
-			FillTransparency = ESP.CurrentSettings.FillTransparency or 0.65,
-			OutlineTransparency = ESP.CurrentSettings.OutlineTransparency or 0,
+			FillTransparency = ESP.CurrentSettings.InnerOpacity or 0.65,
+			OutlineTransparency = ESP.CurrentSettings.EdgeOpacity or 0,
 		})
 	end
 
-	-- // Create Tracer and Arrow // --
-	local Tracer = if typeof(ESP.OriginalSettings.Tracer) == "table" then TracerCreate(ESP.CurrentSettings.Tracer, ESP.Index) else nil;
-	local Arrow = nil;
-
-	if typeof(ESP.OriginalSettings.Arrow) == "table" and ESP.OriginalSettings.Arrow.Enabled then
-		debug_print("Creating Arrow...", ESP.Index, "-", ESP.CurrentSettings.Name)
+	local TargetLine = if typeof(ESP.OriginalSettings.TargetLine) == "table" then TargetLineCreate(ESP.CurrentSettings.TargetLine, ESP.Index) else nil;
+	local Arrow
+	if typeof(ESP.OriginalSettings.ScreenArrow) == "table" and ESP.OriginalSettings.ScreenArrow.ShowArrow then
 		Arrow = InstancesLib.Create("ImageLabel", {
 			Parent = MainGUI,
 			Name = ESP.Index,
 
-			Size = UDim2.new(0, 48, 0, 48),
+			Size = UDim2.new(0, 36, 0, 36),
 			SizeConstraint = Enum.SizeConstraint.RelativeYY,
 
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -746,25 +677,21 @@ function Library:Add(espSettings: ESPSettings)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 
-			Image = "http://www.roblox.com/asset/?id=16368985219",
-			ImageColor3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+			Image = "http://www.roblox.com/asset/?id=6034616401",
+			ImageColor3 = ESP.CurrentSettings.MainColor or Color3.new(1,1,1),
 		});
 
-		ESP.CurrentSettings.Arrow.CenterOffset = if typeof(ESP.CurrentSettings.Arrow.CenterOffset) == "number" then ESP.CurrentSettings.Arrow.CenterOffset else 300;
+		ESP.CurrentSettings.ScreenArrow.ArrowDist = if typeof(ESP.CurrentSettings.ScreenArrow.ArrowDist) == "number" then ESP.CurrentSettings.ScreenArrow.ArrowDist else 250;
 	end
 
-	-- // Setup Delete Handler // --
 	function ESP:Destroy()
 		if ESP.Deleted == true then
-			debug_warn("ESP Instance is already deleted.")
 			return;
 		end
 
-		debug_print("Deleting ESP...", ESP.Index, "-", ESP.CurrentSettings.Name)
 		ESP.Deleted = true
 
 		if ESP.RenderThread then
-			debug_print("Stopping render coroutine", ESP.Index, "-", ESP.CurrentSettings.Name)
 			pcall(coroutine.close, ESP.RenderThread)
 		end
 
@@ -774,13 +701,11 @@ function Library:Add(espSettings: ESPSettings)
 
 		Library.ESP[ESP.Index] = nil
 
-		--// Delete ESP Instances \\--
 		if Billboard then Billboard:Destroy() end
 		if Highlighter then Highlighter:Destroy() end
-		if Tracer then Tracer:Destroy() end
+		if TargetLine then TargetLine:Destroy() end
 		if Arrow then Arrow:Destroy() end
 
-		--// Clear connections \\--
 		for _, connection in ESP.Connections do
 			if not connection.Connected then
 				continue
@@ -791,7 +716,6 @@ function Library:Add(espSettings: ESPSettings)
 
 		table.clear(ESP.Connections)
 
-		--// OnDestroy \\--
 		if ESP.OriginalSettings.OnDestroy then
 			pcall(ESP.OriginalSettings.OnDestroy.Fire, ESP.OriginalSettings.OnDestroy)
 		end
@@ -799,12 +723,9 @@ function Library:Add(espSettings: ESPSettings)
 		if ESP.OriginalSettings.OnDestroyFunc then
 			pcall(ESP.OriginalSettings.OnDestroyFunc)
 		end
-
-		debug_print("ESP deleted.", ESP.Index, "-", ESP.CurrentSettings.Name)
 	end
 
-	-- // Setup Update Handler // --
-	local function Show(forceShow: boolean?)
+	local function Show(forceShow)
 		if not (ESP and ESP.Deleted ~= true) then return end
 		if forceShow ~= true and not ESP.Hidden then
 			return
@@ -812,16 +733,15 @@ function Library:Add(espSettings: ESPSettings)
 
 		ESP.Hidden = false;
 
-		--// Apply to Instances \\--
 		Billboard.Enabled = true;
 
 		if Highlighter then
-			Highlighter.Adornee = ESP.CurrentSettings.Model;
+			Highlighter.Adornee = ESP.CurrentSettings.TargetModel;
 			Highlighter.Parent = ActiveFolder;
 		end
 
-		if Tracer then
-			Tracer.Visible = true;
+		if TargetLine then
+			TargetLine.Visible = true;
 		end
 
 		if Arrow then
@@ -829,7 +749,7 @@ function Library:Add(espSettings: ESPSettings)
 		end
 	end
 
-	local function Hide(forceHide: boolean?)
+	local function Hide(forceHide)
 		if not (ESP and ESP.Deleted ~= true) then return end
 		if forceHide ~= true and ESP.Hidden then
 			return
@@ -837,7 +757,6 @@ function Library:Add(espSettings: ESPSettings)
 
 		ESP.Hidden = true
 
-		--// Apply to Instances \\--
 		Billboard.Enabled = false;
 
 		if Highlighter then
@@ -845,8 +764,8 @@ function Library:Add(espSettings: ESPSettings)
 			Highlighter.Parent = StorageFolder;
 		end
 
-		if Tracer then
-			Tracer.Visible = false;
+		if TargetLine then
+			TargetLine.Visible = false;
 		end
 
 		if Arrow then
@@ -854,21 +773,21 @@ function Library:Add(espSettings: ESPSettings)
 		end
 	end
 
-	function ESP:Show(force: boolean?)
-		ESP.CurrentSettings.Visible = true
+	function ESP:Show(force)
+		ESP.CurrentSettings.IsVisible = true
 		Show(force);
 	end
 
-	function ESP:Hide(force: boolean?)
+	function ESP:Hide(force)
 		if not (ESP and ESP.CurrentSettings and ESP.Deleted ~= true) then return end
 
-		ESP.CurrentSettings.Visible = false
+		ESP.CurrentSettings.IsVisible = false
 		Hide(force);
 	end
 
-	function ESP:ToggleVisibility(force: boolean?)
-		ESP.CurrentSettings.Visible = not ESP.CurrentSettings.Visible
-		if ESP.CurrentSettings.Visible then
+	function ESP:ToggleVisibility(force)
+		ESP.CurrentSettings.IsVisible = not ESP.CurrentSettings.IsVisible
+		if ESP.CurrentSettings.IsVisible then
 			Show(force);
 		else
 			Hide(force);
@@ -878,36 +797,34 @@ function Library:Add(espSettings: ESPSettings)
 	function ESP:Render()
 		if not (ESP and ESP.CurrentSettings and ESP.Deleted ~= true) then return end
 		if
-			ESP.CurrentSettings.Visible == false or
+			ESP.CurrentSettings.IsVisible == false or
 			not camera or
-			(if Library.GlobalConfig.IgnoreCharacter == true then false else not rootPart)
+			(if Library.GlobalConfig.IgnoreSelf == true then false else not rootPart)
 		then
 			Hide()
 			return
 		end
 
-		-- // Check Distance // --
 		if not ESP.CurrentSettings.ModelRoot then
-			ESP.CurrentSettings.ModelRoot = InstancesLib.FindPrimaryPart(ESP.CurrentSettings.Model)
+			ESP.CurrentSettings.ModelRoot = InstancesLib.FindPrimaryPart(ESP.CurrentSettings.TargetModel)
 		end
 
 		local screenPos, isOnScreen = worldToViewport(
-			GetPivot(ESP.CurrentSettings.ModelRoot or ESP.CurrentSettings.Model).Position
+			GetPivot(ESP.CurrentSettings.ModelRoot or ESP.CurrentSettings.TargetModel).Position
 		)
 
 		local distanceFromPlayer = InstancesLib.DistanceFrom(
-			(ESP.CurrentSettings.ModelRoot or ESP.CurrentSettings.Model),
-			(if Library.GlobalConfig.IgnoreCharacter == true then (camera or rootPart) else rootPart)
+			(ESP.CurrentSettings.ModelRoot or ESP.CurrentSettings.TargetModel),
+			(if Library.GlobalConfig.IgnoreSelf == true then (camera or rootPart) else rootPart)
 		)
 
-		if distanceFromPlayer > ESP.CurrentSettings.MaxDistance then
+		if distanceFromPlayer > ESP.CurrentSettings.MaxViewDist then
 			Hide()
 			return
 		end
 
-		-- // Update Arrow (only requires distance check) // --
 		if Arrow then
-			Arrow.Visible = Library.GlobalConfig.Arrows == true and ESP.CurrentSettings.Arrow.Enabled == true and (isOnScreen ~= true)
+			Arrow.Visible = Library.GlobalConfig.ShowArrows == true and ESP.CurrentSettings.ScreenArrow.ShowArrow == true and (isOnScreen ~= true)
 
 			if Arrow.Visible then
 				local screenSize = camera.ViewportSize
@@ -921,7 +838,7 @@ function Library:Add(espSettings: ESPSettings)
 				local direction = (partPos - centerPos)
 				local arctan = math.atan2(direction.Y, direction.X)
 				local angle = math.deg(arctan) + 90
-				local distance = (ESP.CurrentSettings.Arrow.CenterOffset * 0.001) * screenSize.Y
+				local distance = (ESP.CurrentSettings.ScreenArrow.ArrowDist * 0.001) * screenSize.Y
 
 				Arrow.Rotation = angle + 180 * (IsInverted and 0 or 1)
 				Arrow.Position = UDim2.new(
@@ -931,7 +848,7 @@ function Library:Add(espSettings: ESPSettings)
 					centerPos.Y + (distance * math.sin(arctan) * invert)
 				)
 				Arrow.ImageColor3 =
-					if Library.GlobalConfig.Rainbow then Library.RainbowColor else ESP.CurrentSettings.Arrow.Color;
+					if Library.GlobalConfig.ColorCycle then Library.RainbowColor else ESP.CurrentSettings.ScreenArrow.ArrowColor or ESP.CurrentSettings.MainColor;
 			end
 		end
 
@@ -940,85 +857,82 @@ function Library:Add(espSettings: ESPSettings)
 			return
 		else Show() end
 
-		-- // Update Tracer // --
-		if Tracer then
-			Tracer.Visible = Library.GlobalConfig.Tracers == true and ESP.CurrentSettings.Tracer.Enabled == true;
+		if TargetLine then
+			TargetLine.Visible = Library.GlobalConfig.ShowLines == true and ESP.CurrentSettings.TargetLine.ShowLine == true;
 
-			if Tracer.Visible then
-				if ESP.CurrentSettings.Tracer.From == "mouse" then
+			if TargetLine.Visible then
+				if ESP.CurrentSettings.TargetLine.StartPoint == "mouse" then
 					local mousePos = UserInputService:GetMouseLocation()
-					Tracer.From = Vector2.new(mousePos.X, mousePos.Y)
-				elseif ESP.CurrentSettings.Tracer.From == "top" then
-					Tracer.From = Vector2.new(camera.ViewportSize.X / 2, 0)
-				elseif ESP.CurrentSettings.Tracer.From == "center" then
-					Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+					TargetLine.From = Vector2.new(mousePos.X, mousePos.Y)
+				elseif ESP.CurrentSettings.TargetLine.StartPoint == "top" then
+					TargetLine.From = Vector2.new(camera.ViewportSize.X / 2, 0)
+				elseif ESP.CurrentSettings.TargetLine.StartPoint == "center" then
+					TargetLine.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 				else
-					Tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+					TargetLine.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
 				end
 
-				Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+				TargetLine.To = Vector2.new(screenPos.X, screenPos.Y)
 
-				Tracer.Transparency = ESP.CurrentSettings.Tracer.Transparency
-				Tracer.Thickness = ESP.CurrentSettings.Tracer.Thickness
-				Tracer.Color3 = Library.GlobalConfig.Rainbow and Library.RainbowColor
-					or ESP.CurrentSettings.Tracer.Color
+				TargetLine.LineOpacity = ESP.CurrentSettings.TargetLine.LineOpacity
+				TargetLine.LineWidth = ESP.CurrentSettings.TargetLine.LineWidth
+				TargetLine.LineColor = Library.GlobalConfig.ColorCycle and Library.RainbowColor
+					or (ESP.CurrentSettings.TargetLine.LineColor or ESP.CurrentSettings.MainColor)
 			end
 		end
 
-		-- // Update Billboard // --
 		if Billboard then
-			Billboard.Enabled = Library.GlobalConfig.Billboards == true;
+			Billboard.Enabled = Library.GlobalConfig.ShowNames == true;
 
 			if Billboard.Enabled then
-				if Library.GlobalConfig.Distance then
+				if Library.GlobalConfig.ShowDist then
 					BillboardText.Text = string.format(
 						'%s\n<font size="%d">[%s]</font>',
-						ESP.CurrentSettings.Name,
-						ESP.CurrentSettings.TextSize - 3,
+						ESP.CurrentSettings.LabelText,
+						ESP.CurrentSettings.TextScale - 3,
 						math.floor(distanceFromPlayer)
 					)
 				else
-					BillboardText.Text = ESP.CurrentSettings.Name
+					BillboardText.Text = ESP.CurrentSettings.LabelText
 				end
 
-				BillboardText.Font = Library.GlobalConfig.Font
+				BillboardText.Font = Library.GlobalConfig.TextFont
 				BillboardText.TextColor3 =
-					if Library.GlobalConfig.Rainbow then Library.RainbowColor else ESP.CurrentSettings.Color;
-				BillboardText.TextSize = ESP.CurrentSettings.TextSize
+					if Library.GlobalConfig.ColorCycle then Library.RainbowColor else ESP.CurrentSettings.MainColor;
+				BillboardText.TextSize = ESP.CurrentSettings.TextScale
 			end
 		end
 
-		-- // Update Highlighter // --
 		if Highlighter then
-			Highlighter.Parent = if Library.GlobalConfig.Highlighters == true then ActiveFolder else StorageFolder;
-			Highlighter.Adornee = if Library.GlobalConfig.Highlighters == true then ESP.CurrentSettings.Model else nil;
+			Highlighter.Parent = if Library.GlobalConfig.ShowESP == true then ActiveFolder else StorageFolder;
+			Highlighter.Adornee = if Library.GlobalConfig.ShowESP == true then ESP.CurrentSettings.TargetModel else nil;
 
 			if Highlighter.Adornee then
 				if IsAdornment then
-					Highlighter.Color3 = Library.GlobalConfig.Rainbow and Library.RainbowColor or ESP.CurrentSettings.Color
-					Highlighter.Transparency = ESP.CurrentSettings.Transparency
+					Highlighter.Color3 = Library.GlobalConfig.ColorCycle and Library.RainbowColor or ESP.CurrentSettings.MainColor
+					Highlighter.Transparency = ESP.CurrentSettings.FillOpacity
 
-				elseif ESP.OriginalSettings.ESPType == "selectionbox" then
-					Highlighter.Color3 = Library.GlobalConfig.Rainbow and Library.RainbowColor or ESP.CurrentSettings.Color
-					Highlighter.LineThickness = ESP.CurrentSettings.Thickness
+				elseif espType == "selectionbox" then
+					Highlighter.Color3 = Library.GlobalConfig.ColorCycle and Library.RainbowColor or ESP.CurrentSettings.MainColor
+					Highlighter.LineThickness = ESP.CurrentSettings.OutlineWidth
 
-					Highlighter.SurfaceColor3 = ESP.CurrentSettings.SurfaceColor
-					Highlighter.SurfaceTransparency = ESP.CurrentSettings.Transparency
+					Highlighter.SurfaceColor3 = ESP.CurrentSettings.BoxFillColor
+					Highlighter.SurfaceTransparency = ESP.CurrentSettings.FillOpacity
 
 				else
 					Highlighter.FillColor =
-						if Library.GlobalConfig.Rainbow then Library.RainbowColor else ESP.CurrentSettings.FillColor;
+						if Library.GlobalConfig.ColorCycle then Library.RainbowColor else ESP.CurrentSettings.InnerColor;
 					Highlighter.OutlineColor =
-						if Library.GlobalConfig.Rainbow then Library.RainbowColor else ESP.CurrentSettings.OutlineColor;
+						if Library.GlobalConfig.ColorCycle then Library.RainbowColor else ESP.CurrentSettings.EdgeColor;
 
-					Highlighter.FillTransparency = ESP.CurrentSettings.FillTransparency
-					Highlighter.OutlineTransparency = ESP.CurrentSettings.OutlineTransparency
+					Highlighter.FillTransparency = ESP.CurrentSettings.InnerOpacity
+					Highlighter.OutlineTransparency = ESP.CurrentSettings.EdgeOpacity
 				end
 			end
 		end
 	end
 
-	if not ESP.OriginalSettings.Visible then
+	if not ESP.OriginalSettings.IsVisible then
 		Hide()
 	end
 
@@ -1026,7 +940,7 @@ function Library:Add(espSettings: ESPSettings)
 		while true do
 			local success, errorMessage = pcall(ESP.Render, ESP)
 			if not success then
-				task.defer(debug_error, "Failed to render ESP:", errorMessage)
+				task.defer(function() error("Failed to render Glow: " .. errorMessage) end)
 			end
 
 			coroutine.yield()
@@ -1036,17 +950,14 @@ function Library:Add(espSettings: ESPSettings)
 	coroutine.resume(ESP.RenderThread)
 
 	Library.ESP[ESP.Index] = ESP
-	debug_print("ESP created.", ESP.Index, "-", ESP.CurrentSettings.Name)
 	return ESP
 end
 
--- // Update Player Variables // --
 table.insert(Library.Connections, workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	camera = workspace.CurrentCamera;
 end))
 table.insert(Library.Connections, Players.LocalPlayer.CharacterAdded:Connect(UpdatePlayerVariables))
 
--- // Rainbow Handler // --
 table.insert(Library.Connections, RunService.RenderStepped:Connect(function(Delta)
 	Library.RainbowStep = Library.RainbowStep + Delta
 
@@ -1063,7 +974,6 @@ table.insert(Library.Connections, RunService.RenderStepped:Connect(function(Delt
 	end
 end))
 
--- // Main Handler // --
 table.insert(Library.Connections, RunService.RenderStepped:Connect(function()
 	for Index, ESP in Library.ESP do
 		if not (ESP and ESP.CurrentSettings and ESP.Deleted ~= true) then
@@ -1075,7 +985,7 @@ table.insert(Library.Connections, RunService.RenderStepped:Connect(function()
 			continue
 		end
 
-		if not ESP.CurrentSettings.Model or not ESP.CurrentSettings.Model.Parent then
+		if not ESP.CurrentSettings.TargetModel or not ESP.CurrentSettings.TargetModel.Parent then
 			ESP:Destroy()
 			continue
 		end
@@ -1084,6 +994,5 @@ table.insert(Library.Connections, RunService.RenderStepped:Connect(function()
 	end
 end))
 
-debug_print("Loaded! (" .. tostring(VERSION) ..")")
-getgenv().VelocityESP = Library
+getgenv().FunGlow = Library
 return Library
