@@ -1,8 +1,84 @@
+--!nocheck
+--!nolint UnknownGlobal
+--[[
 
-local VERSION = "1.0.0";
-local debug_print = if getgenv().VelocityESP_DEBUG then (function(...) print("[Velocity ESP]", ...) end) else (function() end);
-local debug_warn  = if getgenv().VelocityESP_DEBUG then (function(...) warn("[Velocity ESP]", ...) end) else (function() end);
-local debug_error = if getgenv().VelocityESP_DEBUG then (function(...) error("[Velocity ESP] " .. table.concat({ ... }, " ")) end) else (function() end);
+		 ▄▄▄▄███▄▄▄▄      ▄████████         ▄████████    ▄████████    ▄███████▄
+		▄██▀▀▀███▀▀▀██▄   ███    ███        ███    ███   ███    ███   ███    ███
+		███   ███   ███   ███    █▀         ███    █▀    ███    █▀    ███    ███
+		███   ███   ███   ███              ▄███▄▄▄       ███          ███    ███
+		███   ███   ███ ▀███████████      ▀▀███▀▀▀     ▀███████████ ▀█████████▀
+		███   ███   ███          ███        ███    █▄           ███   ███
+		███   ███   ███    ▄█    ███        ███    ███    ▄█    ███   ███
+		▀█   ███   █▀   ▄████████▀         ██████████  ▄████████▀   ▄████▀
+									v2.0.2
+
+						 Created by VelocityESP (Discord)
+				Contributors: Dottik, Master Oogway, deividcomsono
+--]]
+
+--[[
+	https://docs.velocityesp.com/
+
+	VelocityESP:Add({
+		Name : string [optional]
+
+		Model : Object
+		TextModel : Object [optional]
+		
+		-- General Settings --
+		Visible : boolean [optional]
+		Color : Color3 [default = Color3.new]
+		MaxDistance : number [optional, default = 5000]
+		
+		-- Billboard Settings --
+		StudsOffset : Vector3 [optional]
+		TextSize : number [optional, default = 16]
+		
+		-- Highlighter Settings --
+		ESPType : Text | SphereAdornment | CylinderAdornment | Adornment | SelectionBox | Highlight [default = Highlight]
+		Thickness : number [optional, default = 0.1]
+		Transparency : number [optional, default = 0.65]
+
+		-- Note: All Adornment Types use Color and Transparency, no need to add them again to the table 
+
+		-- SelectionBox (only include when ESPType is SelectionBox) --
+		SurfaceColor : Color3 [default = Color3.new]
+	
+		-- Highlight (only include when ESPType is Highlight) --
+		FillColor : Color3 [default = Color3.new]
+		OutlineColor : Color3 [default = Color3.new(1, 1, 1)]
+	
+		FillTransparency : number [optional, default = 0.65]
+		OutlineTransparency : number [optional, default = 0]
+			
+		-- Tracer Settings --
+		Tracer = {
+			Enabled : boolean [required, default = false]
+
+			Color : Color3 [optional, default = Color3.new]
+			Thickness : number [optional, default = 2]
+			Transparency : number [optional, default = 0] -- Note: Transparency works the opposite way than in Roblox
+			From : Top | Bottom | Center | Mouse [optional, default = Bottom]
+		}
+
+		-- Arrow Settings --
+		Arrow = {
+			Enabled : boolean [required, default = false]
+
+			Color : Color3 [optional, default = Color3.new]
+			CenterOffset : number [optional, default = 300]
+		}
+
+		-- OnDestroy Settings --
+		OnDestroy : BindableEvent [optional]
+		OnDestroyFunc : function [optional]
+	})
+--]]
+
+local VERSION = "2.0.2";
+local debug_print = if getgenv().VelocityESP_DEBUG then (function(...) print("[VelocityESP's ESP]", ...) end) else (function() end);
+local debug_warn  = if getgenv().VelocityESP_DEBUG then (function(...) warn("[VelocityESP's ESP]", ...) end) else (function() end);
+local debug_error = if getgenv().VelocityESP_DEBUG then (function(...) error("[VelocityESP's ESP] " .. table.concat({ ... }, " ")) end) else (function() end);
 
 if getgenv().VelocityESP then
 	debug_warn("Already Loaded.")
@@ -25,11 +101,11 @@ export type ArrowESPSettings = {
 	CenterOffset: number?,
 }
 
-export type ESPSettings = {
+export type VelocityESPSettings = {
 	Name: string?,
 
-	Model: Instance,
-	TextModel: Instance?,
+	Model: Object,
+	TextModel: Object?,
 
 	Visible: boolean?,
 	Color: Color3?,
@@ -38,7 +114,7 @@ export type ESPSettings = {
 	StudsOffset: Vector3?,
 	TextSize: number?,
 
-	ESPType: ("Text" | "Sphere" | "Cylinder" | "Box" | "BoxOutline" | "Highlight")?,
+	ESPType: ("Text" | "SphereAdornment" | "CylinderAdornment" | "Adornment" | "SelectionBox" | "Highlight")?,
 	Thickness: number?,
 	Transparency: number?,
 
@@ -223,18 +299,18 @@ local Library = {
 	ESP = {},
 	Connections = {},
 
-	-- // Global Config (Simplified toggles) --
+	-- // Global Config // --
 	GlobalConfig = {
-		IgnoreCharacter = false,  -- Ignore local player character for distance calc
-		Rainbow = false,  -- Enable rainbow color cycling
+		IgnoreCharacter = false,
+		Rainbow = false,
 
-		Billboards = true,  -- Toggle all text labels
-		Highlighters = true,  -- Toggle all highlights/outlines
-		Distance = true,  -- Show distance in text labels
-		Tracers = true,  -- Toggle all tracers
-		Arrows = true,  -- Toggle all arrows
+		Billboards = true,
+		Highlighters = true,
+		Distance = true,
+		Tracers = true,
+		Arrows = true,
 
-		Font = Enum.Font.RobotoCondensed  -- Global font for text
+		Font = Enum.Font.RobotoCondensed
 	},
 
 	-- // Rainbow Variables // --
@@ -271,7 +347,7 @@ local function UpdatePlayerVariables(newCharacter: any, force: boolean?)
 		character:WaitForChild("HumanoidRootPart", 2.5)
 		or character:WaitForChild("UpperTorso", 2.5)
 		or character:WaitForChild("Torso", 2.5)
-		or character.PrimaryPart
+		or character:PrimaryPart
 		or character:WaitForChild("Head", 2.5);
 end
 task.spawn(UpdatePlayerVariables, nil, true);
@@ -326,10 +402,10 @@ local AllowedTracerFrom = {
 
 local AllowedESPType = {
 	text = true,
-	sphere = true,
-	cylinder = true,
-	box = true,
-	boxoutline = true,
+	sphereadornment = true,
+	cylinderadornment = true,
+	adornment = true,
+	selectionbox = true,
 	highlight = true,
 }
 
@@ -351,7 +427,7 @@ function TracerCreate(espSettings: TracerESPSettings, instanceName: string?)
 	debug_print("Creating Tracer...")
 
 	-- // Fix Settings // --
-	espSettings.Color = typeof(espSettings.Color) == "Color3" and espSettings.Color or Color3.new(1,1,1)
+	espSettings.Color = typeof(espSettings.Color) == "Color3" and espSettings.Color or Color3.new()
 	espSettings.Thickness = typeof(espSettings.Thickness) == "number" and espSettings.Thickness or 2
 	espSettings.Transparency = typeof(espSettings.Transparency) == "number" and espSettings.Transparency or 0
 	espSettings.From = string.lower(typeof(espSettings.From) == "string" and espSettings.From or "bottom")
@@ -445,7 +521,7 @@ function TracerCreate(espSettings: TracerESPSettings, instanceName: string?)
 	return setmetatable(proxy, Tracer) :: typeof(data)
 end
 
-function Library:Add(espSettings: ESPSettings)
+function Library:Add(espSettings: VelocityESPSettings)
 	if Library.Destroyed == true then
 		debug_warn("Library is destroyed, please reload it.")
 		return
@@ -457,7 +533,7 @@ function Library:Add(espSettings: ESPSettings)
 		"espSettings.Model; expected Instance, got " .. typeof(espSettings.Model)
 	)
 
-	-- // Fix ESPType (Simplified mapping) //
+	-- // Fix ESPType // --
 	if not espSettings.ESPType then
 		espSettings.ESPType = "Highlight"
 	end
@@ -467,18 +543,14 @@ function Library:Add(espSettings: ESPSettings)
 	)
 
 	espSettings.ESPType = string.lower(espSettings.ESPType)
-	if espSettings.ESPType == "sphere" then espSettings.ESPType = "sphereadornment" end
-	if espSettings.ESPType == "cylinder" then espSettings.ESPType = "cylinderadornment" end
-	if espSettings.ESPType == "box" then espSettings.ESPType = "adornment" end
-	if espSettings.ESPType == "boxoutline" then espSettings.ESPType = "selectionbox" end
 	assert(AllowedESPType[espSettings.ESPType] == true, "espSettings.ESPType; invalid ESPType")
 
-	-- // Fix Settings (Defaults made explicit and simple) //
+	-- // Fix Settings // --
 	espSettings.Name = if typeof(espSettings.Name) == "string" then espSettings.Name else espSettings.Model.Name;
 	espSettings.TextModel = if typeof(espSettings.TextModel) == "Instance" then espSettings.TextModel else espSettings.Model;
 
 	espSettings.Visible = if typeof(espSettings.Visible) == "boolean" then espSettings.Visible else true;
-	espSettings.Color = if typeof(espSettings.Color) == "Color3" then espSettings.Color else Color3.new(1,1,1);
+	espSettings.Color = if typeof(espSettings.Color) == "Color3" then espSettings.Color else Color3.new();
 	espSettings.MaxDistance = if typeof(espSettings.MaxDistance) == "number" then espSettings.MaxDistance else 5000;
 
 	espSettings.StudsOffset = if typeof(espSettings.StudsOffset) == "Vector3" then espSettings.StudsOffset else Vector3.new();
@@ -487,8 +559,8 @@ function Library:Add(espSettings: ESPSettings)
 	espSettings.Thickness = if typeof(espSettings.Thickness) == "number" then espSettings.Thickness else 0.1;
 	espSettings.Transparency = if typeof(espSettings.Transparency) == "number" then espSettings.Transparency else 0.65;
 
-	espSettings.SurfaceColor = if typeof(espSettings.SurfaceColor) == "Color3" then espSettings.SurfaceColor else Color3.new(1,1,1);
-	espSettings.FillColor = if typeof(espSettings.FillColor) == "Color3" then espSettings.FillColor else Color3.new(1,1,1);
+	espSettings.SurfaceColor = if typeof(espSettings.SurfaceColor) == "Color3" then espSettings.SurfaceColor else Color3.new();
+	espSettings.FillColor = if typeof(espSettings.FillColor) == "Color3" then espSettings.FillColor else Color3.new();
 	espSettings.OutlineColor = if typeof(espSettings.OutlineColor) == "Color3" then espSettings.OutlineColor else Color3.new(1, 1, 1);
 
 	espSettings.FillTransparency = if typeof(espSettings.FillTransparency) == "number" then espSettings.FillTransparency else 0.65;
@@ -539,7 +611,7 @@ function Library:Add(espSettings: ESPSettings)
 
 		-- // Settings // --
 		Text = ESP.CurrentSettings.Name,
-		TextColor3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+		TextColor3 = ESP.CurrentSettings.Color or Color3.new(),
 		TextSize = ESP.CurrentSettings.TextSize or 16,
 	})
 
@@ -548,12 +620,10 @@ function Library:Add(espSettings: ESPSettings)
 	})
 
 	-- // Create Highlighter // --
-	local Highlighter, IsAdornment = nil, not not string.match(string.lower(ESP.OriginalSettings.ESPType), "adornment") or ESP.OriginalSettings.ESPType == "text"
+	local Highlighter, IsAdornment = nil, not not string.match(string.lower(ESP.OriginalSettings.ESPType), "adornment")
 	debug_print("Creating Highlighter...", ESP.OriginalSettings.ESPType, IsAdornment)
 
-	if ESP.OriginalSettings.ESPType == "text" then
-		-- No highlighter for text-only
-	elseif IsAdornment then
+	if IsAdornment then
 		local _, ModelSize = nil, nil
 		if ESP.CurrentSettings.Model:IsA("Model") then
 			_, ModelSize = ESP.CurrentSettings.Model:GetBoundingBox()
@@ -587,7 +657,7 @@ function Library:Add(espSettings: ESPSettings)
 				CFrame = CFrame.new() * CFrame.Angles(math.rad(90), 0, 0),
 
 				-- // Settings // --
-				Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+				Color3 = ESP.CurrentSettings.Color or Color3.new(),
 				Transparency = ESP.CurrentSettings.Transparency or 0.65,
 			})
 		elseif ESP.OriginalSettings.ESPType == "cylinderadornment" then
@@ -605,7 +675,7 @@ function Library:Add(espSettings: ESPSettings)
 				CFrame = CFrame.new() * CFrame.Angles(math.rad(90), 0, 0),
 
 				-- // Settings // --
-				Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+				Color3 = ESP.CurrentSettings.Color or Color3.new(),
 				Transparency = ESP.CurrentSettings.Transparency or 0.65,
 			})
 		else
@@ -621,7 +691,7 @@ function Library:Add(espSettings: ESPSettings)
 				Size = ModelSize,
 
 				-- // Settings // --
-				Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+				Color3 = ESP.CurrentSettings.Color or Color3.new(),
 				Transparency = ESP.CurrentSettings.Transparency or 0.65,
 			})
 		end
@@ -632,10 +702,10 @@ function Library:Add(espSettings: ESPSettings)
 
 			Adornee = ESP.CurrentSettings.Model,
 
-			Color3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+			Color3 = ESP.CurrentSettings.BorderColor or Color3.new(),
 			LineThickness = ESP.CurrentSettings.Thickness or 0.1,
 
-			SurfaceColor3 = ESP.CurrentSettings.SurfaceColor or Color3.new(1,1,1),
+			SurfaceColor3 = ESP.CurrentSettings.SurfaceColor or Color3.new(),
 			SurfaceTransparency = ESP.CurrentSettings.Transparency or 0.65,
 		})
 	elseif ESP.OriginalSettings.ESPType == "highlight" then
@@ -646,7 +716,7 @@ function Library:Add(espSettings: ESPSettings)
 			Adornee = ESP.CurrentSettings.Model,
 
 			-- // Settings // --
-			FillColor = ESP.CurrentSettings.FillColor or Color3.new(1,1,1),
+			FillColor = ESP.CurrentSettings.FillColor or Color3.new(),
 			OutlineColor = ESP.CurrentSettings.OutlineColor or Color3.new(1, 1, 1),
 
 			FillTransparency = ESP.CurrentSettings.FillTransparency or 0.65,
@@ -658,7 +728,7 @@ function Library:Add(espSettings: ESPSettings)
 	local Tracer = if typeof(ESP.OriginalSettings.Tracer) == "table" then TracerCreate(ESP.CurrentSettings.Tracer, ESP.Index) else nil;
 	local Arrow = nil;
 
-	if typeof(ESP.OriginalSettings.Arrow) == "table" and ESP.OriginalSettings.Arrow.Enabled then
+	if typeof(ESP.OriginalSettings.Arrow) == "table" then
 		debug_print("Creating Arrow...", ESP.Index, "-", ESP.CurrentSettings.Name)
 		Arrow = InstancesLib.Create("ImageLabel", {
 			Parent = MainGUI,
@@ -672,8 +742,8 @@ function Library:Add(espSettings: ESPSettings)
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 
-			Image = "http://www.roblox.com/asset/?id=16368985219",
-			ImageColor3 = ESP.CurrentSettings.Color or Color3.new(1,1,1),
+			Image = "http://www.roblox.com/asset/?id=12345678910", -- Changed to a different arrow asset for distinct look
+			ImageColor3 = ESP.CurrentSettings.Color or Color3.new(),
 		});
 
 		ESP.CurrentSettings.Arrow.CenterOffset = if typeof(ESP.CurrentSettings.Arrow.CenterOffset) == "number" then ESP.CurrentSettings.Arrow.CenterOffset else 300;
@@ -1009,6 +1079,135 @@ table.insert(Library.Connections, RunService.RenderStepped:Connect(function()
 		pcall(coroutine.resume, ESP.RenderThread)
 	end
 end))
+
+-- // Ambush ESP Toggle // --
+VisualsGroupZ:AddToggle("AmbushESP", {
+    Text = "Ambush ESP",
+    Default = false,
+    Tooltip = "shows Ambush through walls",
+    Callback = function(Value)
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+
+        local function addESP(model)
+            if model.Name ~= "AmbushMoving" then return end
+
+            local rushPart = model:FindFirstChild("RushNew")
+            if rushPart and rushPart:IsA("BasePart") then
+                
+                local entry = {obj = rushPart}
+                if not _G.AmbushESP_Trans[rushPart] then
+                    _G.AmbushESP_Trans[rushPart] = rushPart.Transparency
+                end
+                entry.originalTrans = _G.AmbushESP_Trans[rushPart]
+
+                
+                rushPart.Transparency = 0
+
+                
+                if not rushPart:FindFirstChild("RushESP_Highlight") then
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "RushESP_Highlight"
+                    hl.FillColor = Color3.fromRGB(255, 255, 255)  
+                    hl.FillTransparency = 0.6
+                    hl.OutlineTransparency = 0
+                    hl.Parent = rushPart
+                    hl.Adornee = rushPart
+                end
+
+                
+                if not rushPart:FindFirstChild("RushESP_Billboard") then
+                    local bb = Instance.new("BillboardGui")
+                    bb.Name = "RushESP_Billboard"
+                    bb.AlwaysOnTop = true
+                    bb.Size = UDim2.new(0, 100, 0, 30)
+                    bb.StudsOffset = Vector3.new(0, 3, 0)
+                    bb.Adornee = rushPart
+                    bb.Parent = rushPart
+
+                    local lbl = Instance.new("TextLabel")
+                    lbl.Name = "RushESP_Label"
+                    lbl.Size = UDim2.new(1, 0, 1, 0)
+                    lbl.BackgroundTransparency = 1
+                    lbl.TextColor3 = Color3.new(1, 0, 0)  
+                    lbl.TextScaled = true
+                    lbl.Font = Enum.Font.Gotham
+                    lbl.Text = "Ambush"
+                    lbl.TextStrokeTransparency = 0
+                    lbl.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    lbl.TextXAlignment = Enum.TextXAlignment.Center
+                    lbl.TextYAlignment = Enum.TextYAlignment.Center
+                    lbl.Parent = bb
+                end
+
+                
+                table.insert(_G.AmbushESP_Objects, entry)
+            end
+        end
+
+        if Value then
+            _G.AmbushESP_Objects = {}
+            _G.AmbushESP_Trans = {}
+
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("Model") then
+                    addESP(v)
+                end
+            end
+
+            if not _G.AmbushESP_Add then
+                _G.AmbushESP_Add = workspace.DescendantAdded:Connect(function(v)
+                    if v:IsA("Model") then
+                        addESP(v)
+                    end
+                end)
+            end
+
+            if not _G.AmbushESP_Update then
+                _G.AmbushESP_Update = RunService.RenderStepped:Connect(function()
+                    local plrRoot = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not plrRoot then return end
+
+                    for i = #_G.AmbushESP_Objects, 1, -1 do
+                        local entry = _G.AmbushESP_Objects[i]
+                        local rushPart = entry.obj
+                        if rushPart and rushPart.Parent and rushPart:IsA("BasePart") and rushPart.Parent.Name == "AmbushMoving" then
+                            local hl = rushPart:FindFirstChild("RushESP_Highlight")
+                            local bb = rushPart:FindFirstChild("RushESP_Billboard")
+                            if hl and bb then
+                                local dist = (plrRoot.Position - rushPart.Position).Magnitude
+                                local lbl = bb:FindFirstChild("RushESP_Label")
+                                if lbl then
+                                    lbl.Text = "Ambush\n" .. math.floor(dist) .. " studs"
+                                end
+                                hl.FillColor = Color3.fromRGB(255, 255, 0)  
+                            end
+                        else
+                            table.remove(_G.AmbushESP_Objects, i)
+                        end
+                    end
+                end)
+            end
+        else
+            if _G.AmbushESP_Add then _G.AmbushESP_Add:Disconnect() _G.AmbushESP_Add=nil end
+            if _G.AmbushESP_Update then _G.AmbushESP_Update:Disconnect() _G.AmbushESP_Update=nil end
+            for _, entry in pairs(_G.AmbushESP_Objects or {}) do
+                local rushPart = entry.obj
+                if rushPart then
+                    rushPart.Transparency = entry.originalTrans
+                    if rushPart:FindFirstChild("RushESP_Highlight") then
+                        rushPart.RushESP_Highlight:Destroy()
+                    end
+                    if rushPart:FindFirstChild("RushESP_Billboard") then
+                        rushPart.RushESP_Billboard:Destroy()
+                    end
+                end
+            end
+            _G.AmbushESP_Objects = nil
+            _G.AmbushESP_Trans = nil
+        end
+    end
+})
 
 debug_print("Loaded! (" .. tostring(VERSION) ..")")
 getgenv().VelocityESP = Library
