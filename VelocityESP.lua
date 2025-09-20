@@ -5028,10 +5028,24 @@ AntiGroup:AddToggle("AntiEyes", {
     end
 })
 
-local MissingFeaturesGroup = Tabs.Misc:AddRightGroupbox("MSHAX Features")
+-- Missing features from MSHAX.lua integrated into VelocityX
+local ExtraFeatures = Tabs.Entities:AddRightGroupbox("MSHAX Extras")
 
+-- Auto Rooms (Pathfinding Auto Walk in Rooms)
+ExtraFeatures:AddToggle("AutoRooms", {
+    Text = "Auto Rooms",
+    Default = false,
+    Callback = function(Value)
+        if not Value and game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):MoveTo(
+                game.Players.LocalPlayer.Character.HumanoidRootPart.Position
+            )
+        end
+    end
+})
 
-MissingFeaturesGroup:AddToggle('AntiBanana', {
+-- Entity Bypasses
+ExtraFeatures:AddToggle("AntiBanana", {
     Text = "Anti-Banana",
     Default = false,
     Callback = function(Value)
@@ -5042,8 +5056,7 @@ MissingFeaturesGroup:AddToggle('AntiBanana', {
         end
     end
 })
-
-MissingFeaturesGroup:AddToggle('AntiJeff', {
+ExtraFeatures:AddToggle("AntiJeff", {
     Text = "Anti-Jeff",
     Default = false,
     Callback = function(Value)
@@ -5058,6 +5071,162 @@ MissingFeaturesGroup:AddToggle('AntiJeff', {
         end
     end
 })
+ExtraFeatures:AddToggle("DeleteSeek", {
+    Text = "Delete Seek (FE)",
+    Default = false,
+    Callback = function(Value)
+        task.spawn(function()
+            while Value do
+                task.wait(0.1)
+                local seekTrigger = workspace:FindFirstChild("TriggerSeek", true)
+                local seekCollision = workspace:FindFirstChild("TriggerEventCollision", true)
+                if seekTrigger then seekTrigger:Destroy() end
+                if seekCollision then seekCollision:ClearAllChildren() end
+            end
+        end)
+    end
+})
+
+ExtraFeatures:AddDivider()
+
+-- Performance / System
+ExtraFeatures:AddToggle("FpsUnlocker", {
+    Text = "FPS Unlocker",
+    Default = true,
+    Callback = function(Value)
+        if setfpscap then
+            setfpscap(Value and 999999 or 60)
+        end
+    end
+})
+ExtraFeatures:AddToggle("PlaySound", {
+    Text = "Play Notify Sound",
+    Default = true,
+    Callback = function(Value)
+        getgenv().PlayingSound = Value
+    end
+})
+ExtraFeatures:AddDropdown("NotifySide", {
+    Values = {"Right", "Left"},
+    Default = "Right",
+    Multi = false,
+    Text = "Notify Side",
+    Callback = function(Value)
+        Library.NotifySide = Value
+    end
+})
+
+ExtraFeatures:AddDivider()
+
+-- Interaction / Prompts
+ExtraFeatures:AddToggle("InstantPrompt", {
+    Text = "Instant Interacts",
+    Default = false,
+    Callback = function(Value)
+        for _, v in ipairs(workspace.CurrentRooms:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                if Value then
+                    v:SetAttribute("Hold", v.HoldDuration)
+                    v.HoldDuration = 0
+                else
+                    v.HoldDuration = v:GetAttribute("Hold") or 0.7
+                end
+            end
+        end
+    end
+})
+ExtraFeatures:AddToggle("PromptClip", {
+    Text = "Prompt Clip",
+    Default = false,
+    Callback = function(Value)
+        for _, v in ipairs(workspace.CurrentRooms:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                v.RequiresLineOfSight = not Value
+            end
+        end
+    end
+})
+ExtraFeatures:AddToggle("PromptReach", {
+    Text = "Prompt Reach",
+    Default = false,
+    Callback = function(Value)
+        for _, v in ipairs(workspace.CurrentRooms:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                if Value then
+                    v:SetAttribute("Distance", v.MaxActivationDistance)
+                    v.MaxActivationDistance = v.MaxActivationDistance * 2
+                else
+                    v.MaxActivationDistance = v:GetAttribute("Distance") or 7
+                end
+            end
+        end
+    end
+})
+ExtraFeatures:AddToggle("DoorReach", {Text = "Door Reach", Default = false})
+ExtraFeatures:AddSlider("DoorReachRange", {
+    Text = "Door Reach Range",
+    Default = 20,
+    Min = 15, Max = 30,
+    Rounding = 1,
+    Callback = function(Value)
+        getgenv().DoorReachRange = Value
+    end
+})
+
+ExtraFeatures:AddDivider()
+
+-- QoL
+ExtraFeatures:AddToggle("AntiAfk", {Text = "Disable AFK", Default = false})
+ExtraFeatures:AddToggle("AntiLag", {
+    Text = "Anti Lag",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            for _, v in ipairs(workspace.CurrentRooms:GetDescendants()) do
+                if v:IsA("BasePart") then v.Material = Enum.Material.Plastic end
+                if v.Name == "LightFixture" or v.Name == "Carpet" or v.Name == "CarpetLight" then
+                    v:Destroy()
+                end
+            end
+        end
+    end
+})
+ExtraFeatures:AddToggle("NoCutscenes", {Text = "No Cutscenes", Default = false})
+
+ExtraFeatures:AddDivider()
+
+-- Visual / Entities
+ExtraFeatures:AddToggle("EntityNotifys", {Text = "Entity Notifys", Default = false})
+ExtraFeatures:AddToggle("EntitiesESP", {Text = "Entities ESP", Default = false})
+
+ExtraFeatures:AddDivider()
+
+-- Actions
+ExtraFeatures:AddButton("Reset", function()
+    if replicatesignal then
+        replicatesignal(game.Players.LocalPlayer.Kill)
+    else
+        game.Players.LocalPlayer.Character.Humanoid.Health = 0
+    end
+end)
+ExtraFeatures:AddButton("Play Again", function()
+    local remote = game.ReplicatedStorage:FindFirstChild("RemotesFolder")
+    if remote and remote:FindFirstChild("PlayAgain") then
+        remote.PlayAgain:FireServer()
+    end
+end)
+ExtraFeatures:AddButton("Lobby", function()
+    local remote = game.ReplicatedStorage:FindFirstChild("RemotesFolder")
+    if remote and remote:FindFirstChild("Lobby") then
+        remote.Lobby:FireServer()
+    end
+end)
+ExtraFeatures:AddButton("Revive", function()
+    local remote = game.ReplicatedStorage:FindFirstChild("RemotesFolder")
+    if remote and remote:FindFirstChild("Revive") then
+        remote.Revive:FireServer()
+    end
+end)
 
 
 
