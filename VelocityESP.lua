@@ -310,7 +310,7 @@ local Library = {
 		Tracers = true,
 		Arrows = true,
 
-		Font = Enum.Font.RobotoCondensed
+		Font = Enum.Font.Oswald
 	},
 
 	-- // Rainbow Variables // --
@@ -598,22 +598,19 @@ function Library:Add(espSettings: ESPSettings)
 		StudsOffset = ESP.CurrentSettings.StudsOffset or Vector3.new(),
 	})
 
-	local BillboardText = InstancesLib.Create("TextLabel", {
-		Parent = Billboard,
-
-		Size = UDim2.new(0, 200, 0, 50),
-		Font = Library.GlobalConfig.Font,
-		TextWrap = true,
-		TextWrapped = true,
-		RichText = true,
-		TextStrokeTransparency = 0,
-		BackgroundTransparency = 1,
-
-		-- // Settings // --
-		Text = ESP.CurrentSettings.Name,
-		TextColor3 = ESP.CurrentSettings.Color or Color3.new(),
-		TextSize = ESP.CurrentSettings.TextSize or 16,
-	})
+local BillboardText = InstancesLib.Create("TextLabel", {
+    Parent = Billboard,
+    Size = UDim2.new(0, 200, 0, 50),
+    FontFace = Font.new(Enum.Font.Oswald, Enum.FontWeight.Bold),
+    TextWrap = true,
+    TextWrapped = true,
+    RichText = true,
+    TextStrokeTransparency = 0,
+    BackgroundTransparency = 1,
+    Text = ESP.CurrentSettings.Name,
+    TextColor3 = ESP.CurrentSettings.Color or Color3.new(),
+    TextSize = ESP.CurrentSettings.TextSize or 16,
+})
 
 	InstancesLib.Create("UIStroke", {
 		Parent = BillboardText
